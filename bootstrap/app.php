@@ -1,6 +1,9 @@
 <?php
 
+use App\Exceptions\CorruptTaskStorage;
+use App\Exceptions\TaskStorageException;
 use App\Http\Middleware\RejectMalformedJson;
+use App\Http\Responses\ApiErrorResponse;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -22,5 +25,31 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request): bool => $request->is('api/*'),
         );
+
+        $exceptions->render(function (CorruptTaskStorage $exception, Request $request) {
+            if (! $request->is('api/*')) {
+                return null;
+            }
+
+            return ApiErrorResponse::make(
+                code: 'storage_corrupted',
+                message: 'Task storage is corrupted',
+                details: [],
+                status: 500,
+            );
+        });
+
+        $exceptions->render(function (TaskStorageException $exception, Request $request) {
+            if (! $request->is('api/*')) {
+                return null;
+            }
+
+            return ApiErrorResponse::make(
+                code: 'storage_error',
+                message: 'Task storage is unavailable',
+                details: [],
+                status: 500,
+            );
+        });
 
     })->create();

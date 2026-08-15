@@ -5,32 +5,63 @@ namespace App\Http\Controllers;
 use App\Http\Requests\ListTasksRequest;
 use App\Http\Requests\StoreTaskRequest;
 use App\Http\Requests\UpdateTaskRequest;
+use App\Http\Responses\ApiErrorResponse;
+use App\Services\JsonTaskStore;
+use Illuminate\Http\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 
 final class TaskController extends Controller
 {
-    public function index(ListTasksRequest $request): Response
+    public function __construct(private readonly JsonTaskStore $store) {}
+
+    public function index(ListTasksRequest $request): JsonResponse
     {
-        return response()->noContent(Response::HTTP_NOT_IMPLEMENTED);
+        return response()->json([
+            'data' => $this->store->all($request->validated('status')),
+        ]);
     }
 
-    public function store(StoreTaskRequest $request): Response
+    public function store(StoreTaskRequest $request): JsonResponse
     {
-        return response()->noContent(Response::HTTP_NOT_IMPLEMENTED);
+        return response()->json([
+            'data' => $this->store->create($request->validated()),
+        ], Response::HTTP_CREATED);
     }
 
-    public function show(): Response
+    public function show(int $id): JsonResponse
     {
-        return response()->noContent(Response::HTTP_NOT_IMPLEMENTED);
+        $task = $this->store->find($id);
+
+        return $task === null
+            ? $this->notFound()
+            : response()->json(['data' => $task]);
     }
 
-    public function update(UpdateTaskRequest $request): Response
+    public function update(UpdateTaskRequest $request, int $id): JsonResponse
     {
-        return response()->noContent(Response::HTTP_NOT_IMPLEMENTED);
+        $task = $this->store->update($id, $request->validated());
+
+        return $task === null
+            ? $this->notFound()
+            : response()->json(['data' => $task]);
     }
 
-    public function destroy(): Response
+    public function destroy(int $id): Response
     {
-        return response()->noContent(Response::HTTP_NOT_IMPLEMENTED);
+        if (! $this->store->delete($id)) {
+            return $this->notFound();
+        }
+
+        return response()->noContent();
+    }
+
+    private function notFound(): JsonResponse
+    {
+        return ApiErrorResponse::make(
+            code: 'task_not_found',
+            message: 'Task not found',
+            details: [],
+            status: Response::HTTP_NOT_FOUND,
+        );
     }
 }
