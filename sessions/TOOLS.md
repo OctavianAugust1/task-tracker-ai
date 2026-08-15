@@ -35,6 +35,19 @@
 - **Проверка:** `git --version` вывела `git version 2.53.0`; создан root-коммит
   `e561162`
 
+## 2026-08-15 · Сессия 4 · Laravel Framework v12.66.0
+
+- **Тип:** библиотека / фреймворк
+- **Установка:** `composer create-project --no-interaction --no-scripts laravel/laravel /tmp/task-api-laravel-q9s397 '12.*'`
+- **Зачем:** создать чистый каркас основной реализации на утверждённом стеке
+- **Область:** основной проект
+- **Проверка:** `php artisan --version` вывела `Laravel Framework 12.66.0`;
+  `php artisan test` — 2 passed, 2 assertions; `./vendor/bin/pint --test` — passed
+
+Стандартная dev-зависимость `laravel/sail` v1.66.0 удалена до переноса каркаса,
+поскольку Docker запрещён правилами проекта. Вместе с ней удалён неиспользуемый
+`symfony/yaml` v7.4.15. Проверка: `composer show laravel/sail` не находит пакет.
+
 ## 2026-08-15 · Сессия 2 · software-properties-common
 
 - **Тип:** CLI
