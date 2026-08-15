@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ListTasksRequest;
@@ -17,14 +19,14 @@ final class TaskController extends Controller
     public function index(ListTasksRequest $request): JsonResponse
     {
         return response()->json([
-            'data' => $this->service->list($request->validated('status')),
+            'data' => $this->service->list($request->validatedStatus()),
         ]);
     }
 
     public function store(StoreTaskRequest $request): JsonResponse
     {
         return response()->json([
-            'data' => $this->service->create($request->validated()),
+            'data' => $this->service->create($request->validatedTaskAttributes()),
         ], Response::HTTP_CREATED);
     }
 
@@ -39,7 +41,7 @@ final class TaskController extends Controller
 
     public function update(UpdateTaskRequest $request, int $id): JsonResponse
     {
-        $task = $this->service->update($id, $request->validated());
+        $task = $this->service->update($id, $request->validatedTaskAttributes());
 
         return $task === null
             ? $this->notFound()

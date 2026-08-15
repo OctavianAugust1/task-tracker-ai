@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests;
 
 use App\Http\Responses\ApiErrorResponse;
@@ -9,6 +11,9 @@ use Illuminate\Http\Exceptions\HttpResponseException;
 
 abstract class ApiRequest extends FormRequest
 {
+    /** @return array<string, list<string>> */
+    abstract public function rules(): array;
+
     public function authorize(): bool
     {
         return true;
@@ -62,11 +67,13 @@ abstract class ApiRequest extends FormRequest
         ));
     }
 
+    /** @return list<string> */
     protected function allowedFields(): array
     {
         return array_keys($this->rules());
     }
 
+    /** @return list<string> */
     protected function inputFieldNames(): array
     {
         return array_keys($this->all());

@@ -1,7 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tests\Feature;
 
+use App\Contracts\TaskRepository;
 use App\Http\Controllers\TaskController;
 use App\Repositories\JsonTaskRepository;
 use App\Services\TaskService;
@@ -9,8 +12,10 @@ use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Testing\TestResponse;
 use PHPUnit\Framework\Attributes\CoversClass;
+use Symfony\Component\HttpFoundation\Response;
 use Tests\TestCase;
 
+/** @phpstan-import-type Task from TaskRepository */
 #[CoversClass(TaskController::class)]
 #[CoversClass(TaskService::class)]
 #[CoversClass(JsonTaskRepository::class)]
@@ -337,6 +342,10 @@ final class TaskApiContractTest extends TestCase
             ]);
     }
 
+    /**
+     * @param  TestResponse<Response>  $response
+     * @param  list<string>  $expectedFields
+     */
     private function assertValidationFields(TestResponse $response, array $expectedFields): void
     {
         $this->assertValidationError($response);
@@ -350,6 +359,7 @@ final class TaskApiContractTest extends TestCase
         }
     }
 
+    /** @param TestResponse<Response> $response */
     private function assertValidationError(TestResponse $response): void
     {
         $this->assertErrorResponse($response, 422, 'validation_failed');
@@ -364,6 +374,7 @@ final class TaskApiContractTest extends TestCase
         }
     }
 
+    /** @param TestResponse<Response> $response */
     private function assertErrorResponse(
         TestResponse $response,
         int $status,
@@ -399,6 +410,7 @@ final class TaskApiContractTest extends TestCase
         );
     }
 
+    /** @param list<Task> $tasks */
     private function writeStorage(array $tasks, int $nextId): void
     {
         $this->files->put($this->tasksFile, json_encode([
@@ -407,6 +419,12 @@ final class TaskApiContractTest extends TestCase
         ], JSON_THROW_ON_ERROR));
     }
 
+    /**
+     * @param  positive-int  $id
+     * @param  non-empty-string  $title
+     * @param  'todo'|'in_progress'|'done'  $status
+     * @return Task
+     */
     private function task(
         int $id = 1,
         string $title = 'Task',

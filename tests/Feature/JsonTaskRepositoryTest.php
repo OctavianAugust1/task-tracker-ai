@@ -1,7 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tests\Feature;
 
+use App\Contracts\TaskRepository;
 use App\Exceptions\CorruptTaskStorage;
 use App\Repositories\JsonTaskRepository;
 use Illuminate\Filesystem\Filesystem;
@@ -9,6 +12,12 @@ use Illuminate\Support\Facades\Http;
 use PHPUnit\Framework\Attributes\CoversClass;
 use Tests\TestCase;
 
+/**
+ * @phpstan-import-type Task from TaskRepository
+ * @phpstan-import-type NewTask from TaskRepository
+ *
+ * @phpstan-type State array{next_id: positive-int, tasks: list<Task>}
+ */
 #[CoversClass(JsonTaskRepository::class)]
 final class JsonTaskRepositoryTest extends TestCase
 {
@@ -138,6 +147,7 @@ final class JsonTaskRepositoryTest extends TestCase
         $this->assertSame($before, $this->files->get($this->tasksFile));
     }
 
+    /** @return State */
     private function readState(): array
     {
         return json_decode(
@@ -148,6 +158,7 @@ final class JsonTaskRepositoryTest extends TestCase
         );
     }
 
+    /** @return Task */
     private function task(): array
     {
         return [
@@ -161,8 +172,13 @@ final class JsonTaskRepositoryTest extends TestCase
         ];
     }
 
+    /** @return NewTask */
     private function taskWithoutId(string $title = 'Task'): array
     {
+        if ($title === '') {
+            throw new \InvalidArgumentException('Test title must not be empty.');
+        }
+
         $task = $this->task();
         unset($task['id']);
         $task['title'] = $title;

@@ -94,3 +94,13 @@
 - **Область:** `naive-run/`
 - **Проверка:** `php artisan about --only=environment` показала Laravel 12.66.0 и
   PHP 8.2.33; `php artisan test` — 5 пройденных тестов
+
+## 2026-08-15 · Сессия 11 · Larastan v3.10.0
+
+- **Тип:** библиотека / CLI
+- **Установка:** `composer require --dev "larastan/larastan:^3.0"`
+- **Зачем:** статически проверять нативные и PHPDoc-типы с учётом Laravel container,
+  фасадов и helpers
+- **Область:** основной проект
+- **Проверка:** `composer analyse` запускает транзитивный PHPStan 2.2.8 на level 8
+  и завершается сообщением `[OK] No errors`; baseline и `ignoreErrors` не используются

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tests\Unit;
 
 use App\Contracts\TaskRepository;
@@ -10,6 +12,7 @@ use Mockery\MockInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 
+/** @phpstan-import-type Task from TaskRepository */
 #[CoversClass(TaskService::class)]
 final class TaskServiceTest extends TestCase
 {
@@ -143,6 +146,7 @@ final class TaskServiceTest extends TestCase
 
         $result = $this->service->update(1, ['title' => 'Changed']);
 
+        $this->assertNotNull($result);
         $this->assertSame('Changed', $result['title']);
     }
 
@@ -158,6 +162,11 @@ final class TaskServiceTest extends TestCase
         $this->assertTrue($deleted);
     }
 
+    /**
+     * @param  positive-int  $id
+     * @param  'todo'|'in_progress'|'done'  $status
+     * @return Task
+     */
     private function task(int $id = 1, string $status = 'todo'): array
     {
         return [

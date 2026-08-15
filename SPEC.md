@@ -143,6 +143,7 @@ API имеет версию `v1`. Неверсионированные марш�
 - PHP 8.2;
 - PHPUnit;
 - Laravel Pint;
+- Larastan / PHPStan level 8 без baseline и `ignoreErrors`;
 - порт `8000`;
 - рабочее хранилище `storage/app/tasks.json`;
 - тесты используют отдельные временные файлы и не обращаются в сеть.

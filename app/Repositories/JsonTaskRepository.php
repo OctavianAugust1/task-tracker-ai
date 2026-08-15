@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Repositories;
 
 use App\Contracts\TaskRepository;
@@ -9,6 +11,12 @@ use DateTimeImmutable;
 use JsonException;
 use stdClass;
 
+/**
+ * @phpstan-import-type Task from TaskRepository
+ * @phpstan-import-type NewTask from TaskRepository
+ *
+ * @phpstan-type State array{next_id: positive-int, tasks: list<Task>}
+ */
 final class JsonTaskRepository implements TaskRepository
 {
     private const TASK_FIELDS = [
@@ -23,11 +31,13 @@ final class JsonTaskRepository implements TaskRepository
 
     public function __construct(private readonly string $path) {}
 
+    /** @return list<Task> */
     public function all(): array
     {
         return $this->withLock(LOCK_SH, fn (): array => $this->readState()['tasks']);
     }
 
+    /** @return Task|null */
     public function find(int $id): ?array
     {
         return $this->withLock(LOCK_SH, function () use ($id): ?array {
@@ -41,6 +51,10 @@ final class JsonTaskRepository implements TaskRepository
         });
     }
 
+    /**
+     * @param  NewTask  $task
+     * @return Task
+     */
     public function create(array $task): array
     {
         return $this->mutate(function (array &$state) use ($task): array {
@@ -48,13 +62,17 @@ final class JsonTaskRepository implements TaskRepository
             $state['next_id']++;
             $state['tasks'][] = $created;
 
-            return $created;
+            return [$created, true];
         });
     }
 
+    /**
+     * @param  callable(Task): Task  $update
+     * @return Task|null
+     */
     public function update(int $id, callable $update): ?array
     {
-        return $this->mutate(function (array &$state, bool &$changed) use ($id, $update): ?array {
+        return $this->mutate(function (array &$state) use ($id, $update): array {
             foreach ($state['tasks'] as $index => $storedTask) {
                 if ($storedTask['id'] !== $id) {
                     continue;
@@ -63,25 +81,21 @@ final class JsonTaskRepository implements TaskRepository
                 $updatedTask = $update($storedTask);
 
                 if ($storedTask === $updatedTask) {
-                    $changed = false;
-
-                    return $storedTask;
+                    return [$storedTask, false];
                 }
 
                 $state['tasks'][$index] = $updatedTask;
 
-                return $updatedTask;
+                return [$updatedTask, true];
             }
 
-            $changed = false;
-
-            return null;
+            return [null, false];
         });
     }
 
     public function delete(int $id): bool
     {
-        return $this->mutate(function (array &$state, bool &$changed) use ($id): bool {
+        return $this->mutate(function (array &$state) use ($id): array {
             foreach ($state['tasks'] as $index => $task) {
                 if ($task['id'] !== $id) {
                     continue;
@@ -89,21 +103,24 @@ final class JsonTaskRepository implements TaskRepository
 
                 array_splice($state['tasks'], $index, 1);
 
-                return true;
+                return [true, true];
             }
 
-            $changed = false;
-
-            return false;
+            return [false, false];
         });
     }
 
+    /**
+     * @template TResult
+     *
+     * @param  callable(State&): array{TResult, bool}  $operation
+     * @return TResult
+     */
     private function mutate(callable $operation): mixed
     {
         return $this->withLock(LOCK_EX, function () use ($operation): mixed {
             $state = $this->readState();
-            $changed = true;
-            $result = $operation($state, $changed);
+            [$result, $changed] = $operation($state);
 
             if ($changed) {
                 $this->writeState($state);
@@ -113,6 +130,13 @@ final class JsonTaskRepository implements TaskRepository
         });
     }
 
+    /**
+     * @template TResult
+     *
+     * @param  int<0, 7>  $operation
+     * @param  callable(): TResult  $callback
+     * @return TResult
+     */
     private function withLock(int $operation, callable $callback): mixed
     {
         $this->ensureDirectoryExists();
@@ -134,6 +158,7 @@ final class JsonTaskRepository implements TaskRepository
         }
     }
 
+    /** @return State */
     private function readState(): array
     {
         if (! is_file($this->path)) {
@@ -163,6 +188,7 @@ final class JsonTaskRepository implements TaskRepository
         return $state;
     }
 
+    /** @param State $state */
     private function writeState(array $state): void
     {
         try {
@@ -292,6 +318,10 @@ final class JsonTaskRepository implements TaskRepository
         return $date !== false && $date->format($format) === $value;
     }
 
+    /**
+     * @param  array<array-key, mixed>  $value
+     * @param  list<string>  $keys
+     */
     private function hasExactKeys(array $value, array $keys): bool
     {
         $actual = array_keys($value);
@@ -324,6 +354,7 @@ final class JsonTaskRepository implements TaskRepository
         return $this->path.'.lock';
     }
 
+    /** @return State */
     private function emptyState(): array
     {
         return ['next_id' => 1, 'tasks' => []];

@@ -15,7 +15,7 @@
 - Composer 2.
 
 Проверенные версии: PHP 8.2.33, Composer 2.10.2, Laravel 12.66.0,
-PHPUnit 11.5.56 и Laravel Pint 1.30.4.
+PHPUnit 11.5.56, Laravel Pint 1.30.4, Larastan 3.10.0 и PHPStan 2.2.8.
 
 ## Установка
 
@@ -95,11 +95,15 @@ curl --include 'http://127.0.0.1:8000/api/v1/tasks?status=todo'
 ```bash
 php artisan test
 ./vendor/bin/pint --test
+composer analyse
 php artisan route:list --path=api/v1/tasks
 ```
 
 Тесты используют уникальные файлы в системной временной директории, не обращаются
 в сеть и не создают `storage/app/tasks.json`.
+
+`composer analyse` проверяет основной PHP-код на PHPStan level 8 с Laravel-aware
+расширением Larastan. Конфигурация не использует baseline или `ignoreErrors`.
 
 ## Архитектура
 

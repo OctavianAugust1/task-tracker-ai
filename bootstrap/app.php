@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use App\Exceptions\CorruptTaskStorage;
 use App\Exceptions\TaskStorageException;
 use App\Http\Middleware\RejectMalformedJson;
@@ -8,6 +10,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -30,7 +33,7 @@ return Application::configure(basePath: dirname(__DIR__))
             fn (Request $request): bool => $request->is('api/*'),
         );
 
-        $exceptions->render(function (CorruptTaskStorage $exception, Request $request) {
+        $exceptions->render(function (CorruptTaskStorage $exception, Request $request): ?JsonResponse {
             if (! $request->is('api/*')) {
                 return null;
             }
@@ -43,7 +46,7 @@ return Application::configure(basePath: dirname(__DIR__))
             );
         });
 
-        $exceptions->render(function (TaskStorageException $exception, Request $request) {
+        $exceptions->render(function (TaskStorageException $exception, Request $request): ?JsonResponse {
             if (! $request->is('api/*')) {
                 return null;
             }
@@ -56,7 +59,7 @@ return Application::configure(basePath: dirname(__DIR__))
             );
         });
 
-        $exceptions->render(function (NotFoundHttpException $exception, Request $request) {
+        $exceptions->render(function (NotFoundHttpException $exception, Request $request): ?JsonResponse {
             if (! $request->is('api/*')) {
                 return null;
             }
@@ -69,7 +72,7 @@ return Application::configure(basePath: dirname(__DIR__))
             );
         });
 
-        $exceptions->render(function (MethodNotAllowedHttpException $exception, Request $request) {
+        $exceptions->render(function (MethodNotAllowedHttpException $exception, Request $request): ?JsonResponse {
             if (! $request->is('api/*')) {
                 return null;
             }
@@ -82,7 +85,7 @@ return Application::configure(basePath: dirname(__DIR__))
             );
         });
 
-        $exceptions->render(function (BaseThrowable $exception, Request $request) {
+        $exceptions->render(function (BaseThrowable $exception, Request $request): ?JsonResponse {
             if (! $request->is('api/*') || $exception instanceof HttpResponseException) {
                 return null;
             }

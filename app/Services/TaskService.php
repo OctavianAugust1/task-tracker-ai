@@ -1,15 +1,24 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services;
 
 use App\Contracts\TaskRepository;
 use DateTimeImmutable;
 use DateTimeZone;
 
+/**
+ * @phpstan-import-type Task from TaskRepository
+ *
+ * @phpstan-type CreateTaskAttributes array{title: non-empty-string, description?: string|null, status?: 'todo'|'in_progress'|'done', due_date?: string|null}
+ * @phpstan-type TaskAttributes array{title?: non-empty-string, description?: string|null, status?: 'todo'|'in_progress'|'done', due_date?: string|null}
+ */
 final class TaskService
 {
     public function __construct(private readonly TaskRepository $repository) {}
 
+    /** @return list<Task> */
     public function list(?string $status = null): array
     {
         $tasks = $this->repository->all();
@@ -26,11 +35,16 @@ final class TaskService
         return $tasks;
     }
 
+    /** @return Task|null */
     public function find(int $id): ?array
     {
         return $this->repository->find($id);
     }
 
+    /**
+     * @param  CreateTaskAttributes  $attributes
+     * @return Task
+     */
     public function create(array $attributes): array
     {
         $timestamp = $this->timestamp();
@@ -45,6 +59,10 @@ final class TaskService
         ]);
     }
 
+    /**
+     * @param  TaskAttributes  $attributes
+     * @return Task|null
+     */
     public function update(int $id, array $attributes): ?array
     {
         return $this->repository->update($id, function (array $task) use ($attributes): array {
