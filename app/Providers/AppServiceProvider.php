@@ -2,6 +2,9 @@
 
 namespace App\Providers;
 
+use App\Contracts\TaskRepository;
+use App\Repositories\JsonTaskRepository;
+use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -11,7 +14,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->bind(TaskRepository::class, function (Application $app): JsonTaskRepository {
+            return new JsonTaskRepository((string) $app['config']->get('tasks.file'));
+        });
     }
 
     /**

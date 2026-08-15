@@ -48,11 +48,11 @@ TASKS_FILE=/tmp/task-api/tasks.json php artisan serve --host=127.0.0.1 --port=80
 
 | Метод | Путь | Назначение |
 |---|---|---|
-| `GET` | `/api/tasks` | Список задач; необязательный фильтр `?status=todo` |
-| `GET` | `/api/tasks/{id}` | Получить задачу |
-| `POST` | `/api/tasks` | Создать задачу |
-| `PATCH` | `/api/tasks/{id}` | Частично изменить задачу |
-| `DELETE` | `/api/tasks/{id}` | Удалить задачу |
+| `GET` | `/api/v1/tasks` | Список задач; необязательный фильтр `?status=todo` |
+| `GET` | `/api/v1/tasks/{id}` | Получить задачу |
+| `POST` | `/api/v1/tasks` | Создать задачу |
+| `PATCH` | `/api/v1/tasks/{id}` | Частично изменить задачу |
+| `DELETE` | `/api/v1/tasks/{id}` | Удалить задачу |
 
 Допустимые статусы: `todo`, `in_progress`, `done`. Поле `due_date` принимает дату
 `YYYY-MM-DD`, включая дату в прошлом. Успешные ответы используют оболочку `data`.
@@ -64,13 +64,13 @@ curl --include \
   --request POST \
   --header 'Content-Type: application/json' \
   --data '{"title":"Write tests","status":"todo","due_date":"2026-08-17"}' \
-  http://127.0.0.1:8000/api/tasks
+  http://127.0.0.1:8000/api/v1/tasks
 ```
 
 Пример фильтра:
 
 ```bash
-curl --include 'http://127.0.0.1:8000/api/tasks?status=todo'
+curl --include 'http://127.0.0.1:8000/api/v1/tasks?status=todo'
 ```
 
 Ошибки имеют единую форму:
@@ -95,11 +95,19 @@ curl --include 'http://127.0.0.1:8000/api/tasks?status=todo'
 ```bash
 php artisan test
 ./vendor/bin/pint --test
-php artisan route:list --path=api/tasks
+php artisan route:list --path=api/v1/tasks
 ```
 
 Тесты используют уникальные файлы в системной временной директории, не обращаются
 в сеть и не создают `storage/app/tasks.json`.
+
+## Архитектура
+
+HTTP-запрос проходит через `TaskController` в `TaskService`. Сервис содержит
+правила задач и зависит только от интерфейса `TaskRepository`. Контейнер Laravel
+подставляет `JsonTaskRepository` — единственный класс, работающий с файлом,
+блокировкой и атомарной записью. Благодаря этой границе сервис unit-тестируется с
+Mockery, а feature-тесты проверяют полный путь на отдельном временном JSON-файле.
 
 ## Ограничения
 

@@ -1,24 +1,33 @@
 <?php
 
-namespace Tests\Unit;
+namespace Tests\Feature;
 
-use App\Services\JsonTaskStore;
-use PHPUnit\Framework\TestCase;
+use App\Repositories\JsonTaskRepository;
+use Illuminate\Filesystem\Filesystem;
+use Illuminate\Support\Facades\Http;
+use PHPUnit\Framework\Attributes\CoversClass;
 use Symfony\Component\Process\Process;
+use Tests\TestCase;
 
-final class JsonTaskStoreConcurrencyTest extends TestCase
+#[CoversClass(JsonTaskRepository::class)]
+final class JsonTaskRepositoryConcurrencyTest extends TestCase
 {
     private string $temporaryDirectory;
 
     private string $tasksFile;
 
+    private Filesystem $files;
+
     protected function setUp(): void
     {
         parent::setUp();
 
+        Http::preventStrayRequests();
+
         $this->temporaryDirectory = sys_get_temp_dir().'/task-concurrency-'.bin2hex(random_bytes(8));
         mkdir($this->temporaryDirectory, 0700, true);
         $this->tasksFile = $this->temporaryDirectory.'/tasks.json';
+        $this->files = new Filesystem;
     }
 
     protected function tearDown(): void
@@ -32,6 +41,9 @@ final class JsonTaskStoreConcurrencyTest extends TestCase
         parent::tearDown();
     }
 
+    /**
+     * Проверяет сохранность всех задач и уникальность ID при параллельной записи.
+     */
     public function test_parallel_creates_keep_every_task_and_assign_unique_ids(): void
     {
         $processes = [];
@@ -52,7 +64,7 @@ final class JsonTaskStoreConcurrencyTest extends TestCase
             $this->assertTrue($process->isSuccessful(), $process->getErrorOutput());
         }
 
-        $tasks = (new JsonTaskStore($this->tasksFile))->all();
+        $tasks = (new JsonTaskRepository($this->tasksFile))->all();
         $ids = array_column($tasks, 'id');
 
         $this->assertCount(12, $tasks);
@@ -60,7 +72,7 @@ final class JsonTaskStoreConcurrencyTest extends TestCase
         $this->assertCount(12, array_unique(array_column($tasks, 'title')));
 
         $state = json_decode(
-            file_get_contents($this->tasksFile),
+            $this->files->get($this->tasksFile),
             true,
             512,
             JSON_THROW_ON_ERROR,

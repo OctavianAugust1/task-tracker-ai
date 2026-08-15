@@ -1,14 +1,15 @@
 <?php
 
-namespace App\Services;
+namespace App\Repositories;
 
+use App\Contracts\TaskRepository;
 use App\Exceptions\CorruptTaskStorage;
 use App\Exceptions\TaskStorageException;
 use DateTimeImmutable;
 use JsonException;
 use stdClass;
 
-final class JsonTaskStore
+final class JsonTaskRepository implements TaskRepository
 {
     private const TASK_FIELDS = [
         'id',
@@ -20,24 +21,11 @@ final class JsonTaskStore
         'updated_at',
     ];
 
-    public function __construct(private readonly ?string $path = null) {}
+    public function __construct(private readonly string $path) {}
 
-    public function all(?string $status = null): array
+    public function all(): array
     {
-        return $this->withLock(LOCK_SH, function () use ($status): array {
-            $tasks = $this->readState()['tasks'];
-
-            if ($status !== null) {
-                $tasks = array_values(array_filter(
-                    $tasks,
-                    fn (array $task): bool => $task['status'] === $status,
-                ));
-            }
-
-            usort($tasks, fn (array $left, array $right): int => $left['id'] <=> $right['id']);
-
-            return $tasks;
-        });
+        return $this->withLock(LOCK_SH, fn (): array => $this->readState()['tasks']);
     }
 
     public function find(int $id): ?array
@@ -53,47 +41,36 @@ final class JsonTaskStore
         });
     }
 
-    public function create(array $attributes): array
+    public function create(array $task): array
     {
-        return $this->mutate(function (array &$state) use ($attributes): array {
-            $timestamp = $this->timestamp();
-            $task = [
-                'id' => $state['next_id'],
-                'title' => $attributes['title'],
-                'description' => $attributes['description'] ?? null,
-                'status' => $attributes['status'] ?? 'todo',
-                'due_date' => $attributes['due_date'] ?? null,
-                'created_at' => $timestamp,
-                'updated_at' => $timestamp,
-            ];
-
+        return $this->mutate(function (array &$state) use ($task): array {
+            $created = ['id' => $state['next_id'], ...$task];
             $state['next_id']++;
-            $state['tasks'][] = $task;
+            $state['tasks'][] = $created;
 
-            return $task;
+            return $created;
         });
     }
 
-    public function update(int $id, array $attributes): ?array
+    public function update(int $id, callable $update): ?array
     {
-        return $this->mutate(function (array &$state, bool &$changed) use ($id, $attributes): ?array {
-            foreach ($state['tasks'] as $index => $task) {
-                if ($task['id'] !== $id) {
+        return $this->mutate(function (array &$state, bool &$changed) use ($id, $update): ?array {
+            foreach ($state['tasks'] as $index => $storedTask) {
+                if ($storedTask['id'] !== $id) {
                     continue;
                 }
 
-                $updated = array_replace($task, $attributes);
+                $updatedTask = $update($storedTask);
 
-                if ($updated === $task) {
+                if ($storedTask === $updatedTask) {
                     $changed = false;
 
-                    return $task;
+                    return $storedTask;
                 }
 
-                $updated['updated_at'] = $this->timestamp();
-                $state['tasks'][$index] = $updated;
+                $state['tasks'][$index] = $updatedTask;
 
-                return $updated;
+                return $updatedTask;
             }
 
             $changed = false;
@@ -139,7 +116,6 @@ final class JsonTaskStore
     private function withLock(int $operation, callable $callback): mixed
     {
         $this->ensureDirectoryExists();
-
         $lock = @fopen($this->lockPath(), 'c+');
 
         if ($lock === false) {
@@ -160,11 +136,11 @@ final class JsonTaskStore
 
     private function readState(): array
     {
-        if (! is_file($this->filePath())) {
+        if (! is_file($this->path)) {
             return $this->emptyState();
         }
 
-        $contents = @file_get_contents($this->filePath());
+        $contents = @file_get_contents($this->path);
 
         if ($contents === false) {
             throw new TaskStorageException('Unable to read task storage.');
@@ -211,7 +187,7 @@ final class JsonTaskStore
                 throw new TaskStorageException('Unable to write task storage.');
             }
 
-            if (! @rename($temporaryPath, $this->filePath())) {
+            if (! @rename($temporaryPath, $this->path)) {
                 throw new TaskStorageException('Unable to replace task storage.');
             }
         } finally {
@@ -262,9 +238,7 @@ final class JsonTaskStore
 
         if (isset($normalized['tasks']) && is_array($normalized['tasks'])) {
             $normalized['tasks'] = array_map(
-                fn (mixed $task): mixed => $task instanceof stdClass
-                    ? get_object_vars($task)
-                    : $task,
+                fn (mixed $task): mixed => $task instanceof stdClass ? get_object_vars($task) : $task,
                 $normalized['tasks'],
             );
         }
@@ -315,57 +289,43 @@ final class JsonTaskStore
 
         $date = DateTimeImmutable::createFromFormat('!'.$format, $value);
 
-        if ($date === false) {
-            return false;
-        }
-
-        $errors = DateTimeImmutable::getLastErrors();
-
-        return ($errors === false
-            || ($errors['warning_count'] === 0 && $errors['error_count'] === 0))
-            && $date->format($format) === $value;
+        return $date !== false && $date->format($format) === $value;
     }
 
-    private function hasExactKeys(array $value, array $expectedKeys): bool
+    private function hasExactKeys(array $value, array $keys): bool
     {
-        $actualKeys = array_keys($value);
-        sort($actualKeys);
-        sort($expectedKeys);
+        $actual = array_keys($value);
+        sort($actual);
+        sort($keys);
 
-        return $actualKeys === $expectedKeys;
+        return $actual === $keys;
+    }
+
+    private function ensureDirectoryExists(): void
+    {
+        $directory = $this->directory();
+
+        if (is_dir($directory)) {
+            return;
+        }
+
+        if (! @mkdir($directory, 0755, true) && ! is_dir($directory)) {
+            throw new TaskStorageException('Unable to create task storage directory.');
+        }
+    }
+
+    private function directory(): string
+    {
+        return dirname($this->path);
+    }
+
+    private function lockPath(): string
+    {
+        return $this->path.'.lock';
     }
 
     private function emptyState(): array
     {
         return ['next_id' => 1, 'tasks' => []];
-    }
-
-    private function timestamp(): string
-    {
-        return gmdate('Y-m-d\TH:i:s\Z');
-    }
-
-    private function ensureDirectoryExists(): void
-    {
-        if (! is_dir($this->directory())
-            && ! @mkdir($this->directory(), 0775, true)
-            && ! is_dir($this->directory())) {
-            throw new TaskStorageException('Unable to create task storage directory.');
-        }
-    }
-
-    private function filePath(): string
-    {
-        return $this->path ?? config('tasks.file');
-    }
-
-    private function lockPath(): string
-    {
-        return $this->filePath().'.lock';
-    }
-
-    private function directory(): string
-    {
-        return dirname($this->filePath());
     }
 }

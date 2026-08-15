@@ -6,31 +6,31 @@ use App\Http\Requests\ListTasksRequest;
 use App\Http\Requests\StoreTaskRequest;
 use App\Http\Requests\UpdateTaskRequest;
 use App\Http\Responses\ApiErrorResponse;
-use App\Services\JsonTaskStore;
+use App\Services\TaskService;
 use Illuminate\Http\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 
 final class TaskController extends Controller
 {
-    public function __construct(private readonly JsonTaskStore $store) {}
+    public function __construct(private readonly TaskService $service) {}
 
     public function index(ListTasksRequest $request): JsonResponse
     {
         return response()->json([
-            'data' => $this->store->all($request->validated('status')),
+            'data' => $this->service->list($request->validated('status')),
         ]);
     }
 
     public function store(StoreTaskRequest $request): JsonResponse
     {
         return response()->json([
-            'data' => $this->store->create($request->validated()),
+            'data' => $this->service->create($request->validated()),
         ], Response::HTTP_CREATED);
     }
 
     public function show(int $id): JsonResponse
     {
-        $task = $this->store->find($id);
+        $task = $this->service->find($id);
 
         return $task === null
             ? $this->notFound()
@@ -39,7 +39,7 @@ final class TaskController extends Controller
 
     public function update(UpdateTaskRequest $request, int $id): JsonResponse
     {
-        $task = $this->store->update($id, $request->validated());
+        $task = $this->service->update($id, $request->validated());
 
         return $task === null
             ? $this->notFound()
@@ -48,7 +48,7 @@ final class TaskController extends Controller
 
     public function destroy(int $id): Response
     {
-        if (! $this->store->delete($id)) {
+        if (! $this->service->delete($id)) {
             return $this->notFound();
         }
 
