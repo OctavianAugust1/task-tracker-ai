@@ -34,3 +34,50 @@
 - **Область:** окружение
 - **Проверка:** `git --version` вывела `git version 2.53.0`; создан root-коммит
   `e561162`
+
+## 2026-08-15 · Сессия 2 · software-properties-common
+
+- **Тип:** CLI
+- **Установка:** `apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y software-properties-common`
+- **Зачем:** добавить репозиторий с требуемым PHP 8.2, отсутствующим в штатном
+  репозитории Ubuntu 26.04
+- **Область:** окружение
+- **Проверка:** команда `add-apt-repository` стала доступна
+
+## 2026-08-15 · Сессия 2 · ondrej/php PPA — удалён
+
+- **Тип:** сервис
+- **Установка:** `add-apt-repository -y ppa:ondrej/php`
+- **Зачем:** первая попытка получить PHP 8.2 для Ubuntu 26.04
+- **Область:** окружение
+- **Проверка:** `apt-get update` вернул `404` для `resolute`; запись удалена командой
+  `add-apt-repository --remove -y ppa:ondrej/php`, поскольку PPA направил Ubuntu
+  26.04 на `packages.sury.org/php`
+
+## 2026-08-15 · Сессия 2 · PHP 8.2.33 и Composer 2.9.5
+
+- **Тип:** CLI
+- **Установка:** ключ и репозиторий добавлены по `https://packages.sury.org/php/README.txt`, затем выполнено `DEBIAN_FRONTEND=noninteractive apt-get install -y php8.2-cli php8.2-mbstring php8.2-xml php8.2-curl php8.2-zip composer php8.2-intl`
+- **Зачем:** создать, запустить и проверить Laravel 12 на зафиксированной версии PHP
+- **Область:** окружение
+- **Проверка:** `php -v` вывела `PHP 8.2.33`; `composer --version` вывела
+  `Composer version 2.9.5` и `PHP version 8.2.33`
+
+## 2026-08-15 · Сессия 2 · Composer 2.10.2 — заменяет системный 2.9.5
+
+- **Тип:** CLI
+- **Установка:** официальный установщик скачан с `https://getcomposer.org/installer`, проверен SHA-384 по `https://composer.github.io/installer.sig` и запущен как `php /tmp/composer-setup.php --install-dir=/usr/local/bin --filename=composer`
+- **Зачем:** системная сборка Composer 2.9.5 падала на PHP 8.2 при разрешении
+  зависимостей из-за вызова отсутствующей функции `array_all()`
+- **Область:** окружение
+- **Проверка:** `composer --version` вывела `Composer version 2.10.2` и
+  `PHP version 8.2.33`; `composer install --no-interaction` успешно завершилась
+
+## 2026-08-15 · Сессия 2 · Laravel 12.66.0
+
+- **Тип:** библиотека
+- **Установка:** `composer create-project laravel/laravel naive-run '^12.0' --no-interaction`, затем после замены Composer — `composer install --no-interaction`
+- **Зачем:** создать изолированный наивный прогон Task API
+- **Область:** `naive-run/`
+- **Проверка:** `php artisan about --only=environment` показала Laravel 12.66.0 и
+  PHP 8.2.33; `php artisan test` — 5 пройденных тестов
