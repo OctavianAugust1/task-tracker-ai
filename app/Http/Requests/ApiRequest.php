@@ -37,11 +37,16 @@ abstract class ApiRequest extends FormRequest
     protected function failedValidation(Validator $validator): void
     {
         $details = [];
+        $generalMessages = $validator->errors()->messages()['_request'] ?? [];
 
         foreach ($validator->errors()->messages() as $field => $messages) {
+            if ($field === '_request') {
+                continue;
+            }
+
             foreach ($messages as $message) {
                 $details[] = [
-                    'field' => $field === '_request' ? null : $field,
+                    'field' => $field,
                     'message' => $message,
                 ];
             }
@@ -49,7 +54,9 @@ abstract class ApiRequest extends FormRequest
 
         throw new HttpResponseException(ApiErrorResponse::make(
             code: 'validation_failed',
-            message: 'Request validation failed',
+            message: $details === [] && $generalMessages !== []
+                ? implode(' ', $generalMessages)
+                : 'Request validation failed',
             details: $details,
             status: 422,
         ));

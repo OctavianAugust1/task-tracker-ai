@@ -6,6 +6,7 @@ use App\Exceptions\CorruptTaskStorage;
 use App\Exceptions\TaskStorageException;
 use DateTimeImmutable;
 use JsonException;
+use stdClass;
 
 final class JsonTaskStore
 {
@@ -174,7 +175,9 @@ final class JsonTaskStore
         }
 
         try {
-            $state = json_decode($contents, true, 512, JSON_THROW_ON_ERROR);
+            $state = $this->normalizeDecodedState(
+                json_decode($contents, false, 512, JSON_THROW_ON_ERROR),
+            );
         } catch (JsonException $exception) {
             throw new CorruptTaskStorage('Task storage contains invalid JSON.', previous: $exception);
         }
@@ -202,7 +205,9 @@ final class JsonTaskStore
         }
 
         try {
-            if (@file_put_contents($temporaryPath, $contents) === false) {
+            $writtenBytes = @file_put_contents($temporaryPath, $contents);
+
+            if ($writtenBytes === false || $writtenBytes !== strlen($contents)) {
                 throw new TaskStorageException('Unable to write task storage.');
             }
 
@@ -245,6 +250,26 @@ final class JsonTaskStore
         if ($ids !== [] && $state['next_id'] <= max(array_keys($ids))) {
             throw new CorruptTaskStorage('Task storage next_id is not monotonic.');
         }
+    }
+
+    private function normalizeDecodedState(mixed $state): mixed
+    {
+        if (! $state instanceof stdClass) {
+            return $state;
+        }
+
+        $normalized = get_object_vars($state);
+
+        if (isset($normalized['tasks']) && is_array($normalized['tasks'])) {
+            $normalized['tasks'] = array_map(
+                fn (mixed $task): mixed => $task instanceof stdClass
+                    ? get_object_vars($task)
+                    : $task,
+                $normalized['tasks'],
+            );
+        }
+
+        return $normalized;
     }
 
     private function assertValidTask(mixed $task): void

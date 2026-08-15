@@ -194,7 +194,15 @@ final class TaskApiContractTest extends TestCase
         $this->writeStorage([$this->task()], nextId: 2);
 
         $empty = $this->patchJson('/api/tasks/1', []);
-        $this->assertValidationError($empty);
+        $empty
+            ->assertStatus(422)
+            ->assertExactJson([
+                'error' => [
+                    'code' => 'validation_failed',
+                    'message' => 'At least one field must be provided.',
+                    'details' => [],
+                ],
+            ]);
 
         $serverFields = $this->patchJson('/api/tasks/1', [
             'id' => 7,
@@ -239,6 +247,31 @@ final class TaskApiContractTest extends TestCase
 
         $this->assertValidationFields($response, ['title']);
         $response->assertHeader('content-type', 'application/json');
+    }
+
+    public function test_framework_404_and_405_are_safe_contract_errors(): void
+    {
+        config()->set('app.debug', true);
+
+        $this->getJson('/api/tasks/not-a-number')
+            ->assertStatus(404)
+            ->assertExactJson([
+                'error' => [
+                    'code' => 'not_found',
+                    'message' => 'Resource not found',
+                    'details' => [],
+                ],
+            ]);
+
+        $this->putJson('/api/tasks')
+            ->assertStatus(405)
+            ->assertExactJson([
+                'error' => [
+                    'code' => 'method_not_allowed',
+                    'message' => 'Method not allowed',
+                    'details' => [],
+                ],
+            ]);
     }
 
     private function assertValidationFields(TestResponse $response, array $expectedFields): void

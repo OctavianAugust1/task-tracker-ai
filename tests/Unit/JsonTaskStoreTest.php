@@ -83,6 +83,11 @@ final class JsonTaskStoreTest extends TestCase
                 $this->addToAssertionCount(1);
             }
         }
+
+        file_put_contents($this->tasksFile, '{"next_id":1,"tasks":{}}');
+
+        $this->expectException(CorruptTaskStorage::class);
+        $this->store->all();
     }
 
     public function test_corrupted_storage_is_not_replaced_by_a_mutation(): void
