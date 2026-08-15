@@ -2,16 +2,19 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\ListTasksRequest;
+use App\Http\Requests\StoreTaskRequest;
+use App\Http\Requests\UpdateTaskRequest;
 use Symfony\Component\HttpFoundation\Response;
 
 final class TaskController extends Controller
 {
-    public function index(): Response
+    public function index(ListTasksRequest $request): Response
     {
         return response()->noContent(Response::HTTP_NOT_IMPLEMENTED);
     }
 
-    public function store(): Response
+    public function store(StoreTaskRequest $request): Response
     {
         return response()->noContent(Response::HTTP_NOT_IMPLEMENTED);
     }
@@ -21,7 +24,7 @@ final class TaskController extends Controller
         return response()->noContent(Response::HTTP_NOT_IMPLEMENTED);
     }
 
-    public function update(): Response
+    public function update(UpdateTaskRequest $request): Response
     {
         return response()->noContent(Response::HTTP_NOT_IMPLEMENTED);
     }
