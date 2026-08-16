@@ -53,46 +53,85 @@ final class TaskApiContractTest extends TestCase
     }
 
     /**
-     * Проверяет сортировку списка, фильтр статуса и единую оболочку data.
+     * Проверяет сортировку, одиночные фильтры, их комбинацию и оболочку data.
      */
     public function test_list_is_sorted_filterable_and_uses_the_data_envelope(): void
     {
         $this->writeStorage([
-            $this->task(id: 3, title: 'Third', status: 'done'),
-            $this->task(id: 1, title: 'First', status: 'todo'),
-            $this->task(id: 2, title: 'Second', status: 'todo'),
-        ], nextId: 4);
+            $this->task(id: 4, title: 'Fourth', status: 'done'),
+            $this->task(id: 3, title: 'Third', status: 'in_progress', dueDate: '2026-08-20'),
+            $this->task(id: 1, title: 'First', status: 'todo', dueDate: '2026-08-20'),
+            $this->task(id: 2, title: 'Second', status: 'done', dueDate: '2026-08-20'),
+            $this->task(id: 5, title: 'Fifth', status: 'done', dueDate: '2026-08-21'),
+        ], nextId: 6);
 
         $this->getJson('/api/v1/tasks')
             ->assertOk()
             ->assertExactJson(['data' => [
-                $this->task(id: 1, title: 'First', status: 'todo'),
-                $this->task(id: 2, title: 'Second', status: 'todo'),
-                $this->task(id: 3, title: 'Third', status: 'done'),
+                $this->task(id: 1, title: 'First', status: 'todo', dueDate: '2026-08-20'),
+                $this->task(id: 2, title: 'Second', status: 'done', dueDate: '2026-08-20'),
+                $this->task(id: 3, title: 'Third', status: 'in_progress', dueDate: '2026-08-20'),
+                $this->task(id: 4, title: 'Fourth', status: 'done'),
+                $this->task(id: 5, title: 'Fifth', status: 'done', dueDate: '2026-08-21'),
             ]]);
 
-        $this->getJson('/api/v1/tasks?status=todo')
+        $this->getJson('/api/v1/tasks?statuses[]=todo&statuses[]=done')
             ->assertOk()
             ->assertExactJson(['data' => [
-                $this->task(id: 1, title: 'First', status: 'todo'),
-                $this->task(id: 2, title: 'Second', status: 'todo'),
+                $this->task(id: 1, title: 'First', status: 'todo', dueDate: '2026-08-20'),
+                $this->task(id: 2, title: 'Second', status: 'done', dueDate: '2026-08-20'),
+                $this->task(id: 4, title: 'Fourth', status: 'done'),
+                $this->task(id: 5, title: 'Fifth', status: 'done', dueDate: '2026-08-21'),
             ]]);
 
-        $this->getJson('/api/v1/tasks?status=in_progress')
+        $this->getJson('/api/v1/tasks?due_date=2026-08-20')
+            ->assertOk()
+            ->assertExactJson(['data' => [
+                $this->task(id: 1, title: 'First', status: 'todo', dueDate: '2026-08-20'),
+                $this->task(id: 2, title: 'Second', status: 'done', dueDate: '2026-08-20'),
+                $this->task(id: 3, title: 'Third', status: 'in_progress', dueDate: '2026-08-20'),
+            ]]);
+
+        $this->getJson('/api/v1/tasks?statuses[]=todo&statuses[]=done&due_date=2026-08-20')
+            ->assertOk()
+            ->assertExactJson(['data' => [
+                $this->task(id: 1, title: 'First', status: 'todo', dueDate: '2026-08-20'),
+                $this->task(id: 2, title: 'Second', status: 'done', dueDate: '2026-08-20'),
+            ]]);
+
+        $this->getJson('/api/v1/tasks?statuses[]=todo&due_date=2026-08-21')
             ->assertOk()
             ->assertExactJson(['data' => []]);
     }
 
     /**
-     * Проверяет ошибки неизвестного query-параметра и недопустимого статуса.
+     * Проверяет все ошибочные формы комбинированных фильтров.
      */
-    public function test_list_rejects_unknown_query_parameters_and_invalid_status(): void
+    public function test_list_rejects_invalid_filter_parameters(): void
     {
         $unknownParameter = $this->getJson('/api/v1/tasks?sort=title');
         $this->assertValidationFields($unknownParameter, ['sort']);
 
-        $invalidStatus = $this->getJson('/api/v1/tasks?status=archived');
-        $this->assertValidationFields($invalidStatus, ['status']);
+        $oldStatus = $this->getJson('/api/v1/tasks?status=todo');
+        $this->assertValidationFields($oldStatus, ['status']);
+
+        $invalidStatus = $this->getJson('/api/v1/tasks?statuses[]=archived');
+        $this->assertValidationFields($invalidStatus, ['statuses.0']);
+
+        $emptyStatuses = $this->getJson('/api/v1/tasks?statuses[]=');
+        $this->assertValidationFields($emptyStatuses, ['statuses.0']);
+
+        $duplicateStatuses = $this->getJson('/api/v1/tasks?statuses[]=todo&statuses[]=todo');
+        $this->assertValidationFields($duplicateStatuses, ['statuses.0', 'statuses.1']);
+
+        $invalidDate = $this->getJson('/api/v1/tasks?due_date=2026-02-30');
+        $this->assertValidationFields($invalidDate, ['due_date']);
+
+        $scalarStatuses = $this->getJson('/api/v1/tasks?statuses=todo');
+        $this->assertValidationFields($scalarStatuses, ['statuses']);
+
+        $associativeStatuses = $this->getJson('/api/v1/tasks?statuses[primary]=todo');
+        $this->assertValidationFields($associativeStatuses, ['statuses']);
     }
 
     /**

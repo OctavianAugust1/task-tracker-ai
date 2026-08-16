@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
+use App\Data\TaskFilters;
 use UnexpectedValueException;
 
 final class ListTasksRequest extends ApiRequest
@@ -12,7 +13,9 @@ final class ListTasksRequest extends ApiRequest
     public function rules(): array
     {
         return [
-            'status' => ['sometimes', 'string', 'in:todo,in_progress,done'],
+            'statuses' => ['sometimes', 'required', 'array', 'list', 'min:1', 'max:3'],
+            'statuses.*' => ['required', 'string', 'distinct:strict', 'in:todo,in_progress,done'],
+            'due_date' => ['sometimes', 'required', 'string', 'date_format:Y-m-d'],
         ];
     }
 
@@ -33,19 +36,31 @@ final class ListTasksRequest extends ApiRequest
         return array_keys($this->query->all());
     }
 
-    /** @return 'todo'|'in_progress'|'done'|null */
-    public function validatedStatus(): ?string
+    public function validatedFilters(): TaskFilters
     {
-        $status = $this->validated('status');
+        $rawStatuses = $this->validated('statuses');
+        $statuses = [];
 
-        if ($status === null) {
-            return null;
+        if ($rawStatuses !== null) {
+            if (! is_array($rawStatuses) || ! array_is_list($rawStatuses)) {
+                throw new UnexpectedValueException('Validated statuses have an invalid type.');
+            }
+
+            foreach ($rawStatuses as $status) {
+                if (! is_string($status) || ! in_array($status, ['todo', 'in_progress', 'done'], true)) {
+                    throw new UnexpectedValueException('Validated status has an invalid type.');
+                }
+
+                $statuses[] = $status;
+            }
         }
 
-        if (! is_string($status) || ! in_array($status, ['todo', 'in_progress', 'done'], true)) {
-            throw new UnexpectedValueException('Validated status has an invalid type.');
+        $dueDate = $this->validated('due_date');
+
+        if ($dueDate !== null && ! is_string($dueDate)) {
+            throw new UnexpectedValueException('Validated due date has an invalid type.');
         }
 
-        return $status;
+        return new TaskFilters($statuses, $dueDate);
     }
 }

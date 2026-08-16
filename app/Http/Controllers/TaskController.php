@@ -19,7 +19,7 @@ final class TaskController extends Controller
     public function index(ListTasksRequest $request): JsonResponse
     {
         return response()->json([
-            'data' => $this->service->list($request->validatedStatus()),
+            'data' => $this->service->list($request->validatedFilters()),
         ]);
     }
 

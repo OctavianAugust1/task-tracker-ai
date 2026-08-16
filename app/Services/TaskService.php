@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Contracts\TaskRepository;
+use App\Data\TaskFilters;
 use DateTimeImmutable;
 use DateTimeZone;
 
@@ -19,14 +20,21 @@ final class TaskService
     public function __construct(private readonly TaskRepository $repository) {}
 
     /** @return list<Task> */
-    public function list(?string $status = null): array
+    public function list(TaskFilters $filters): array
     {
         $tasks = $this->repository->all();
 
-        if ($status !== null) {
+        if ($filters->statuses !== []) {
             $tasks = array_values(array_filter(
                 $tasks,
-                fn (array $task): bool => $task['status'] === $status,
+                fn (array $task): bool => in_array($task['status'], $filters->statuses, true),
+            ));
+        }
+
+        if ($filters->dueDate !== null) {
+            $tasks = array_values(array_filter(
+                $tasks,
+                fn (array $task): bool => $task['due_date'] === $filters->dueDate,
             ));
         }
 

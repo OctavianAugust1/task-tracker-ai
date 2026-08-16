@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use App\Contracts\TaskRepository;
+use App\Data\TaskFilters;
 use App\Services\TaskService;
 use Mockery;
 use Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
@@ -33,7 +34,7 @@ final class TaskServiceTest extends TestCase
     }
 
     /**
-     * Проверяет фильтрацию по статусу и сортировку задач внутри сервиса.
+     * Проверяет OR статусов, AND точной даты и сортировку внутри сервиса.
      */
     public function test_list_filters_and_sorts_repository_tasks(): void
     {
@@ -41,14 +42,88 @@ final class TaskServiceTest extends TestCase
             ->shouldReceive('all')
             ->once()
             ->andReturn([
-                $this->task(id: 3, status: 'todo'),
-                $this->task(id: 1, status: 'done'),
-                $this->task(id: 2, status: 'todo'),
+                $this->task(id: 4, status: 'done'),
+                $this->task(id: 3, status: 'todo', dueDate: '2026-08-21'),
+                $this->task(id: 1, status: 'done', dueDate: '2026-08-20'),
+                $this->task(id: 2, status: 'todo', dueDate: '2026-08-20'),
             ]);
 
-        $tasks = $this->service->list('todo');
+        $tasks = $this->service->list(new TaskFilters(['todo', 'done'], '2026-08-20'));
 
-        $this->assertSame([2, 3], array_column($tasks, 'id'));
+        $this->assertSame([1, 2], array_column($tasks, 'id'));
+    }
+
+    /**
+     * Проверяет возврат всех задач по ID при отсутствии фильтров.
+     */
+    public function test_list_without_filters_returns_all_tasks_sorted(): void
+    {
+        $this->repository
+            ->shouldReceive('all')
+            ->once()
+            ->andReturn([
+                $this->task(id: 2, status: 'done'),
+                $this->task(id: 1, status: 'todo'),
+            ]);
+
+        $tasks = $this->service->list(new TaskFilters);
+
+        $this->assertSame([1, 2], array_column($tasks, 'id'));
+    }
+
+    /**
+     * Проверяет OR-фильтрацию только по нескольким статусам.
+     */
+    public function test_list_filters_by_statuses_only(): void
+    {
+        $this->repository
+            ->shouldReceive('all')
+            ->once()
+            ->andReturn([
+                $this->task(id: 1, status: 'todo'),
+                $this->task(id: 2, status: 'in_progress'),
+                $this->task(id: 3, status: 'done'),
+            ]);
+
+        $tasks = $this->service->list(new TaskFilters(['todo', 'done']));
+
+        $this->assertSame([1, 3], array_column($tasks, 'id'));
+    }
+
+    /**
+     * Проверяет точную дату без статусов и исключение задачи с null-датой.
+     */
+    public function test_list_filters_by_due_date_only_and_excludes_null(): void
+    {
+        $this->repository
+            ->shouldReceive('all')
+            ->once()
+            ->andReturn([
+                $this->task(id: 1, dueDate: null),
+                $this->task(id: 2, dueDate: '2026-08-20'),
+                $this->task(id: 3, dueDate: '2026-08-21'),
+            ]);
+
+        $tasks = $this->service->list(new TaskFilters(dueDate: '2026-08-20'));
+
+        $this->assertSame([2], array_column($tasks, 'id'));
+    }
+
+    /**
+     * Проверяет пустую выборку при отсутствии совпадений комбинации фильтров.
+     */
+    public function test_list_returns_empty_when_combination_has_no_matches(): void
+    {
+        $this->repository
+            ->shouldReceive('all')
+            ->once()
+            ->andReturn([
+                $this->task(id: 1, status: 'todo', dueDate: '2026-08-20'),
+            ]);
+
+        $tasks = $this->service->list(new TaskFilters(['done'], '2026-08-20'));
+
+        $this->assertSame([], $tasks);
     }
 
     /**
@@ -167,14 +242,17 @@ final class TaskServiceTest extends TestCase
      * @param  'todo'|'in_progress'|'done'  $status
      * @return Task
      */
-    private function task(int $id = 1, string $status = 'todo'): array
-    {
+    private function task(
+        int $id = 1,
+        string $status = 'todo',
+        ?string $dueDate = null,
+    ): array {
         return [
             'id' => $id,
             'title' => 'Task',
             'description' => null,
             'status' => $status,
-            'due_date' => null,
+            'due_date' => $dueDate,
             'created_at' => '2026-08-15T10:00:00Z',
             'updated_at' => '2026-08-15T10:00:00Z',
         ];
