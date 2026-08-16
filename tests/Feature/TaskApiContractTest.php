@@ -132,6 +132,21 @@ final class TaskApiContractTest extends TestCase
 
         $associativeStatuses = $this->getJson('/api/v1/tasks?statuses[primary]=todo');
         $this->assertValidationFields($associativeStatuses, ['statuses']);
+
+        $emptyCategoryIds = $this->getJson('/api/v1/tasks?category_ids[]=');
+        $this->assertValidationFields($emptyCategoryIds, ['category_ids.0']);
+
+        $invalidCategoryId = $this->getJson('/api/v1/tasks?category_ids[]=0');
+        $this->assertValidationFields($invalidCategoryId, ['category_ids.0']);
+
+        $duplicateCategoryIds = $this->getJson('/api/v1/tasks?category_ids[]=1&category_ids[]=1');
+        $this->assertValidationFields($duplicateCategoryIds, ['category_ids.0', 'category_ids.1']);
+
+        $scalarCategoryIds = $this->getJson('/api/v1/tasks?category_ids=1');
+        $this->assertValidationFields($scalarCategoryIds, ['category_ids']);
+
+        $associativeCategoryIds = $this->getJson('/api/v1/tasks?category_ids[primary]=1');
+        $this->assertValidationFields($associativeCategoryIds, ['category_ids']);
     }
 
     /**
@@ -166,6 +181,7 @@ final class TaskApiContractTest extends TestCase
             ->assertJsonPath('data.description', null)
             ->assertJsonPath('data.status', 'todo')
             ->assertJsonPath('data.due_date', '2020-01-01');
+        $response->assertJsonPath('data.category_id', null);
 
         $this->assertIso8601Utc($response->json('data.created_at'));
         $this->assertSame($response->json('data.created_at'), $response->json('data.updated_at'));
@@ -477,6 +493,7 @@ final class TaskApiContractTest extends TestCase
             'description' => $description,
             'status' => $status,
             'due_date' => $dueDate,
+            'category_id' => null,
             'created_at' => '2026-08-15T10:00:00Z',
             'updated_at' => '2026-08-15T10:00:00Z',
         ];

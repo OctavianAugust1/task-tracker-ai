@@ -10,21 +10,25 @@
 
 - имя: `Task API v1`;
 - schema: Postman Collection v2.1;
-- переменные: `base_url`, `task_id`, `due_date`;
+- переменные: `base_url`, `task_id`, `category_id`, `due_date`;
 - авторизация: отсутствует;
 - requests:
-  1. `GET /api/v1/tasks` с `statuses[]=todo`, `statuses[]=done`, `due_date`;
+  1. `GET /api/v1/tasks` с `statuses[]`, `due_date`, `category_ids[]`;
   2. `GET /api/v1/tasks/:task_id`;
   3. `POST /api/v1/tasks`;
   4. `PATCH /api/v1/tasks/:task_id`;
   5. `DELETE /api/v1/tasks/:task_id`.
+  6. `GET /api/v1/categories`;
+  7. `GET /api/v1/categories/:category_id`;
+  8. `POST /api/v1/categories`;
+  9. `PATCH /api/v1/categories/:category_id`;
+  10. `DELETE /api/v1/categories/:category_id`.
 
 Каждый request содержит описание и базовый Postman test ожидаемого status code.
-Create сохраняет возвращённый `data.id` в collection variable `task_id`, чтобы
-последующие show/update/delete могли использовать созданную задачу.
+Create-запросы сохраняют `data.id` в `task_id` и `category_id`.
 
 ## Проверка
 
 - прочитать созданный workspace;
-- прочитать созданную collection и убедиться, что в ней пять requests;
+- прочитать collection и убедиться, что в ней десять requests;
 - не публиковать документацию и не создавать внешние вызовы к localhost.

@@ -127,6 +127,24 @@ final class TaskServiceTest extends TestCase
     }
 
     /**
+     * Проверяет OR категорий и AND с фильтрами статуса и точной даты.
+     */
+    public function test_list_combines_category_filter_with_status_and_date(): void
+    {
+        $tasks = [
+            [...$this->task(id: 1, status: 'done', dueDate: '2026-08-20'), 'category_id' => 1],
+            [...$this->task(id: 2, status: 'done', dueDate: '2026-08-20'), 'category_id' => 2],
+            [...$this->task(id: 3, status: 'todo', dueDate: '2026-08-20'), 'category_id' => 1],
+            $this->task(id: 4, status: 'done', dueDate: '2026-08-20'),
+        ];
+        $this->repository->shouldReceive('all')->once()->andReturn($tasks);
+
+        $filtered = $this->service->list(new TaskFilters(['done'], '2026-08-20', [1, 2]));
+
+        $this->assertSame([1, 2], array_column($filtered, 'id'));
+    }
+
+    /**
      * Проверяет добавление значений по умолчанию и временных меток при создании.
      */
     public function test_create_adds_defaults_and_timestamps(): void
@@ -253,6 +271,7 @@ final class TaskServiceTest extends TestCase
             'description' => null,
             'status' => $status,
             'due_date' => $dueDate,
+            'category_id' => null,
             'created_at' => '2026-08-15T10:00:00Z',
             'updated_at' => '2026-08-15T10:00:00Z',
         ];

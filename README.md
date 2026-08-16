@@ -48,11 +48,16 @@ TASKS_FILE=/tmp/task-api/tasks.json php artisan serve --host=127.0.0.1 --port=80
 
 | Метод | Путь | Назначение |
 |---|---|---|
-| `GET` | `/api/v1/tasks` | Список задач; фильтры `statuses[]` и `due_date` |
+| `GET` | `/api/v1/tasks` | Список; фильтры `statuses[]`, `due_date`, `category_ids[]` |
 | `GET` | `/api/v1/tasks/{id}` | Получить задачу |
 | `POST` | `/api/v1/tasks` | Создать задачу |
 | `PATCH` | `/api/v1/tasks/{id}` | Частично изменить задачу |
 | `DELETE` | `/api/v1/tasks/{id}` | Удалить задачу |
+| `GET` | `/api/v1/categories` | Список категорий |
+| `GET` | `/api/v1/categories/{id}` | Получить категорию |
+| `POST` | `/api/v1/categories` | Создать категорию |
+| `PATCH` | `/api/v1/categories/{id}` | Переименовать категорию |
+| `DELETE` | `/api/v1/categories/{id}` | Удалить неиспользуемую категорию |
 
 Допустимые статусы: `todo`, `in_progress`, `done`. Поле `due_date` принимает дату
 `YYYY-MM-DD`, включая дату в прошлом. Успешные ответы используют оболочку `data`.
@@ -74,9 +79,10 @@ curl --include \
   'http://127.0.0.1:8000/api/v1/tasks?statuses[]=todo&statuses[]=done&due_date=2026-08-17'
 ```
 
-Значения `statuses[]` объединяются через OR, точная дата `due_date` — со
-статусами через AND. Допустимо передать только одну из групп фильтров. Старый
-одиночный параметр `status` не поддерживается.
+Значения `statuses[]` и `category_ids[]` объединяются через OR внутри своей
+группы. Статусы, категории и точная дата `due_date` объединяются через AND.
+Задача содержит nullable `category_id`; неизвестная категория отклоняется с 422.
+Старый одиночный параметр `status` не поддерживается.
 
 Ошибки имеют единую форму:
 
@@ -102,6 +108,7 @@ php artisan test
 ./vendor/bin/pint --test
 composer analyse
 php artisan route:list --path=api/v1/tasks
+php artisan route:list --path=api/v1/categories
 ```
 
 Тесты используют уникальные файлы в системной временной директории, не обращаются
@@ -113,18 +120,18 @@ php artisan route:list --path=api/v1/tasks
 ## Postman
 
 В подключённом Postman-аккаунте создан personal workspace `Laravel Task API` и
-коллекция `Task API v1` со всеми пятью endpoint'ами. Коллекция использует
-переменные `base_url=http://127.0.0.1:8000`, `task_id` и `due_date`; запрос Create
-сохраняет созданный ID для Get, Update и Delete.
+коллекция `Task API v1` со всеми десятью endpoint'ами. Коллекция использует
+переменные `base_url=http://127.0.0.1:8000`, `task_id`, `category_id` и `due_date`;
+запросы Create сохраняют созданные ID для последующих операций.
 
 - Workspace ID: `bdf83f6a-5b7c-42cd-9a94-f970641f71fc`.
 - Collection UID: `15088864-85dfa2f5-31b8-4a87-90bd-5d787cedbd3f`.
 
 ## Архитектура
 
-HTTP-запрос проходит через `TaskController` в `TaskService`. Сервис содержит
-правила задач и зависит только от интерфейса `TaskRepository`. Контейнер Laravel
-подставляет `JsonTaskRepository` — единственный класс, работающий с файлом,
+HTTP-запрос проходит через task/category controller в соответствующий сервис.
+Сервисы содержат бизнес-правила и зависят от интерфейсов репозиториев. Контейнер
+Laravel подставляет общий `JsonTaskRepository` — единственный класс, работающий с файлом,
 блокировкой и атомарной записью. Благодаря этой границе сервис unit-тестируется с
 Mockery, а feature-тесты проверяют полный путь на отдельном временном JSON-файле.
 

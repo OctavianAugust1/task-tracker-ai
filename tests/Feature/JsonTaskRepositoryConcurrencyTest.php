@@ -80,7 +80,7 @@ final class JsonTaskRepositoryConcurrencyTest extends TestCase
             JSON_THROW_ON_ERROR,
         );
 
-        $this->assertSame(13, $state['next_id']);
+        $this->assertSame(13, $state['next_task_id']);
         $this->assertSame([], glob($this->temporaryDirectory.'/.tasks-*') ?: []);
     }
 }

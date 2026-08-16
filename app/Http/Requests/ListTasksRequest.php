@@ -16,6 +16,8 @@ final class ListTasksRequest extends ApiRequest
             'statuses' => ['sometimes', 'required', 'array', 'list', 'min:1', 'max:3'],
             'statuses.*' => ['required', 'string', 'distinct:strict', 'in:todo,in_progress,done'],
             'due_date' => ['sometimes', 'required', 'string', 'date_format:Y-m-d'],
+            'category_ids' => ['sometimes', 'required', 'array', 'list', 'min:1'],
+            'category_ids.*' => ['required', 'integer', 'min:1', 'distinct:strict'],
         ];
     }
 
@@ -61,6 +63,23 @@ final class ListTasksRequest extends ApiRequest
             throw new UnexpectedValueException('Validated due date has an invalid type.');
         }
 
-        return new TaskFilters($statuses, $dueDate);
+        $rawCategoryIds = $this->validated('category_ids');
+        $categoryIds = [];
+        if ($rawCategoryIds !== null) {
+            if (! is_array($rawCategoryIds) || ! array_is_list($rawCategoryIds)) {
+                throw new UnexpectedValueException('Validated category IDs have an invalid type.');
+            }
+            foreach ($rawCategoryIds as $categoryId) {
+                if (is_string($categoryId) && ctype_digit($categoryId)) {
+                    $categoryId = (int) $categoryId;
+                }
+                if (! is_int($categoryId) || $categoryId < 1) {
+                    throw new UnexpectedValueException('Validated category ID has an invalid type.');
+                }
+                $categoryIds[] = $categoryId;
+            }
+        }
+
+        return new TaskFilters($statuses, $dueDate, $categoryIds);
     }
 }

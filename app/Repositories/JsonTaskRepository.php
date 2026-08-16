@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace App\Repositories;
 
+use App\Contracts\CategoryRepository;
 use App\Contracts\TaskRepository;
+use App\Exceptions\CategoryInUse;
 use App\Exceptions\CorruptTaskStorage;
+use App\Exceptions\DuplicateCategoryName;
+use App\Exceptions\InvalidTaskCategory;
 use App\Exceptions\TaskStorageException;
 use DateTimeImmutable;
 use JsonException;
@@ -14,10 +18,12 @@ use stdClass;
 /**
  * @phpstan-import-type Task from TaskRepository
  * @phpstan-import-type NewTask from TaskRepository
+ * @phpstan-import-type Category from CategoryRepository
+ * @phpstan-import-type NewCategory from CategoryRepository
  *
- * @phpstan-type State array{next_id: positive-int, tasks: list<Task>}
+ * @phpstan-type State array{next_task_id: positive-int, next_category_id: positive-int, tasks: list<Task>, categories: list<Category>}
  */
-final class JsonTaskRepository implements TaskRepository
+final class JsonTaskRepository implements CategoryRepository, TaskRepository
 {
     private const TASK_FIELDS = [
         'id',
@@ -25,6 +31,7 @@ final class JsonTaskRepository implements TaskRepository
         'description',
         'status',
         'due_date',
+        'category_id',
         'created_at',
         'updated_at',
     ];
@@ -58,8 +65,9 @@ final class JsonTaskRepository implements TaskRepository
     public function create(array $task): array
     {
         return $this->mutate(function (array &$state) use ($task): array {
-            $created = ['id' => $state['next_id'], ...$task];
-            $state['next_id']++;
+            $this->assertCategoryExists($state, $task['category_id']);
+            $created = ['id' => $state['next_task_id'], ...$task];
+            $state['next_task_id']++;
             $state['tasks'][] = $created;
 
             return [$created, true];
@@ -79,6 +87,7 @@ final class JsonTaskRepository implements TaskRepository
                 }
 
                 $updatedTask = $update($storedTask);
+                $this->assertCategoryExists($state, $updatedTask['category_id']);
 
                 if ($storedTask === $updatedTask) {
                     return [$storedTask, false];
@@ -102,6 +111,86 @@ final class JsonTaskRepository implements TaskRepository
                 }
 
                 array_splice($state['tasks'], $index, 1);
+
+                return [true, true];
+            }
+
+            return [false, false];
+        });
+    }
+
+    /** @return list<Category> */
+    public function allCategories(): array
+    {
+        return $this->withLock(LOCK_SH, fn (): array => $this->readState()['categories']);
+    }
+
+    /** @return Category|null */
+    public function findCategory(int $id): ?array
+    {
+        return $this->withLock(LOCK_SH, function () use ($id): ?array {
+            foreach ($this->readState()['categories'] as $category) {
+                if ($category['id'] === $id) {
+                    return $category;
+                }
+            }
+
+            return null;
+        });
+    }
+
+    /** @param NewCategory $category
+     * @return Category
+     */
+    public function createCategory(array $category): array
+    {
+        return $this->mutate(function (array &$state) use ($category): array {
+            $this->assertUniqueCategoryName($state, $category['name']);
+            $created = ['id' => $state['next_category_id'], ...$category];
+            $state['next_category_id']++;
+            $state['categories'][] = $created;
+
+            return [$created, true];
+        });
+    }
+
+    /** @param callable(Category): Category $update
+     * @return Category|null
+     */
+    public function updateCategory(int $id, callable $update): ?array
+    {
+        return $this->mutate(function (array &$state) use ($id, $update): array {
+            foreach ($state['categories'] as $index => $stored) {
+                if ($stored['id'] !== $id) {
+                    continue;
+                }
+                $updated = $update($stored);
+                $this->assertUniqueCategoryName($state, $updated['name'], $id);
+                if ($updated === $stored) {
+                    return [$stored, false];
+                }
+                $state['categories'][$index] = $updated;
+
+                return [$updated, true];
+            }
+
+            return [null, false];
+        });
+    }
+
+    public function deleteCategory(int $id): bool
+    {
+        return $this->mutate(function (array &$state) use ($id): array {
+            foreach ($state['categories'] as $index => $category) {
+                if ($category['id'] !== $id) {
+                    continue;
+                }
+                foreach ($state['tasks'] as $task) {
+                    if ($task['category_id'] === $id) {
+                        throw new CategoryInUse('Category is assigned to a task.');
+                    }
+                }
+                array_splice($state['categories'], $index, 1);
 
                 return [true, true];
             }
@@ -225,19 +314,39 @@ final class JsonTaskRepository implements TaskRepository
 
     private function assertValidState(mixed $state): void
     {
-        if (! is_array($state) || ! $this->hasExactKeys($state, ['next_id', 'tasks'])) {
+        if (! is_array($state) || ! $this->hasExactKeys(
+            $state,
+            ['next_task_id', 'next_category_id', 'tasks', 'categories'],
+        )) {
             throw new CorruptTaskStorage('Task storage has an invalid root structure.');
         }
 
-        if (! is_int($state['next_id']) || $state['next_id'] < 1) {
-            throw new CorruptTaskStorage('Task storage has an invalid next_id.');
+        if (! is_int($state['next_task_id']) || $state['next_task_id'] < 1
+            || ! is_int($state['next_category_id']) || $state['next_category_id'] < 1) {
+            throw new CorruptTaskStorage('Task storage has an invalid next ID.');
         }
 
-        if (! is_array($state['tasks']) || ! array_is_list($state['tasks'])) {
-            throw new CorruptTaskStorage('Task storage tasks must be a list.');
+        if (! is_array($state['tasks']) || ! array_is_list($state['tasks'])
+            || ! is_array($state['categories']) || ! array_is_list($state['categories'])) {
+            throw new CorruptTaskStorage('Task storage collections must be lists.');
         }
 
         $ids = [];
+        $categoryIds = [];
+
+        foreach ($state['categories'] as $category) {
+            $this->assertValidCategory($category);
+            if (isset($categoryIds[$category['id']])) {
+                throw new CorruptTaskStorage('Task storage contains duplicate category IDs.');
+            }
+            foreach ($state['categories'] as $other) {
+                if ($other !== $category && is_array($other) && isset($other['name'])
+                    && is_string($other['name']) && mb_strtolower($other['name']) === mb_strtolower($category['name'])) {
+                    throw new CorruptTaskStorage('Task storage contains duplicate category names.');
+                }
+            }
+            $categoryIds[$category['id']] = true;
+        }
 
         foreach ($state['tasks'] as $task) {
             $this->assertValidTask($task);
@@ -247,10 +356,17 @@ final class JsonTaskRepository implements TaskRepository
             }
 
             $ids[$task['id']] = true;
+
+            if ($task['category_id'] !== null && ! isset($categoryIds[$task['category_id']])) {
+                throw new CorruptTaskStorage('Task references a missing category.');
+            }
         }
 
-        if ($ids !== [] && $state['next_id'] <= max(array_keys($ids))) {
-            throw new CorruptTaskStorage('Task storage next_id is not monotonic.');
+        if ($ids !== [] && $state['next_task_id'] <= max(array_keys($ids))) {
+            throw new CorruptTaskStorage('Task storage next task ID is not monotonic.');
+        }
+        if ($categoryIds !== [] && $state['next_category_id'] <= max(array_keys($categoryIds))) {
+            throw new CorruptTaskStorage('Task storage next category ID is not monotonic.');
         }
     }
 
@@ -262,10 +378,35 @@ final class JsonTaskRepository implements TaskRepository
 
         $normalized = get_object_vars($state);
 
+        $legacy = $this->hasExactKeys($normalized, ['next_id', 'tasks']);
+
         if (isset($normalized['tasks']) && is_array($normalized['tasks'])) {
             $normalized['tasks'] = array_map(
-                fn (mixed $task): mixed => $task instanceof stdClass ? get_object_vars($task) : $task,
+                function (mixed $task) use ($legacy): mixed {
+                    $normalizedTask = $task instanceof stdClass ? get_object_vars($task) : $task;
+                    if ($legacy && is_array($normalizedTask)) {
+                        $normalizedTask['category_id'] = null;
+                    }
+
+                    return $normalizedTask;
+                },
                 $normalized['tasks'],
+            );
+        }
+
+        if ($legacy) {
+            return [
+                'next_task_id' => $normalized['next_id'],
+                'next_category_id' => 1,
+                'tasks' => $normalized['tasks'],
+                'categories' => [],
+            ];
+        }
+
+        if (isset($normalized['categories']) && is_array($normalized['categories'])) {
+            $normalized['categories'] = array_map(
+                fn (mixed $category): mixed => $category instanceof stdClass ? get_object_vars($category) : $category,
+                $normalized['categories'],
             );
         }
 
@@ -301,9 +442,54 @@ final class JsonTaskRepository implements TaskRepository
             throw new CorruptTaskStorage('Task storage contains an invalid due date.');
         }
 
+        if ($task['category_id'] !== null && (! is_int($task['category_id']) || $task['category_id'] < 1)) {
+            throw new CorruptTaskStorage('Task storage contains an invalid category ID.');
+        }
+
         if (! $this->isExactDate($task['created_at'], 'Y-m-d\TH:i:s\Z')
             || ! $this->isExactDate($task['updated_at'], 'Y-m-d\TH:i:s\Z')) {
             throw new CorruptTaskStorage('Task storage contains an invalid timestamp.');
+        }
+    }
+
+    private function assertValidCategory(mixed $category): void
+    {
+        if (! is_array($category) || ! $this->hasExactKeys(
+            $category,
+            ['id', 'name', 'created_at', 'updated_at'],
+        )) {
+            throw new CorruptTaskStorage('Task storage contains an invalid category structure.');
+        }
+        if (! is_int($category['id']) || $category['id'] < 1
+            || ! is_string($category['name']) || trim($category['name']) !== $category['name']
+            || mb_strlen($category['name']) < 1 || mb_strlen($category['name']) > 100
+            || ! $this->isExactDate($category['created_at'], 'Y-m-d\TH:i:s\Z')
+            || ! $this->isExactDate($category['updated_at'], 'Y-m-d\TH:i:s\Z')) {
+            throw new CorruptTaskStorage('Task storage contains an invalid category.');
+        }
+    }
+
+    /** @param State $state */
+    private function assertCategoryExists(array $state, ?int $categoryId): void
+    {
+        if ($categoryId === null) {
+            return;
+        }
+        foreach ($state['categories'] as $category) {
+            if ($category['id'] === $categoryId) {
+                return;
+            }
+        }
+        throw new InvalidTaskCategory('Category does not exist.');
+    }
+
+    /** @param State $state */
+    private function assertUniqueCategoryName(array $state, string $name, ?int $exceptId = null): void
+    {
+        foreach ($state['categories'] as $category) {
+            if ($category['id'] !== $exceptId && mb_strtolower($category['name']) === mb_strtolower($name)) {
+                throw new DuplicateCategoryName('Category name already exists.');
+            }
         }
     }
 
@@ -357,6 +543,11 @@ final class JsonTaskRepository implements TaskRepository
     /** @return State */
     private function emptyState(): array
     {
-        return ['next_id' => 1, 'tasks' => []];
+        return [
+            'next_task_id' => 1,
+            'next_category_id' => 1,
+            'tasks' => [],
+            'categories' => [],
+        ];
     }
 }

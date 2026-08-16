@@ -2,7 +2,10 @@
 
 declare(strict_types=1);
 
+use App\Exceptions\CategoryInUse;
 use App\Exceptions\CorruptTaskStorage;
+use App\Exceptions\DuplicateCategoryName;
+use App\Exceptions\InvalidTaskCategory;
 use App\Exceptions\TaskStorageException;
 use App\Http\Middleware\RejectMalformedJson;
 use App\Http\Responses\ApiErrorResponse;
@@ -57,6 +60,33 @@ return Application::configure(basePath: dirname(__DIR__))
                 details: [],
                 status: 500,
             );
+        });
+
+        $exceptions->render(function (InvalidTaskCategory $exception, Request $request): ?JsonResponse {
+            return $request->is('api/*') ? ApiErrorResponse::make(
+                'validation_failed',
+                'Request validation failed',
+                [['field' => 'category_id', 'message' => 'The selected category does not exist.']],
+                422,
+            ) : null;
+        });
+
+        $exceptions->render(function (DuplicateCategoryName $exception, Request $request): ?JsonResponse {
+            return $request->is('api/*') ? ApiErrorResponse::make(
+                'validation_failed',
+                'Request validation failed',
+                [['field' => 'name', 'message' => 'The category name has already been taken.']],
+                422,
+            ) : null;
+        });
+
+        $exceptions->render(function (CategoryInUse $exception, Request $request): ?JsonResponse {
+            return $request->is('api/*') ? ApiErrorResponse::make(
+                'category_in_use',
+                'Category is assigned to one or more tasks',
+                [],
+                409,
+            ) : null;
         });
 
         $exceptions->render(function (NotFoundHttpException $exception, Request $request): ?JsonResponse {

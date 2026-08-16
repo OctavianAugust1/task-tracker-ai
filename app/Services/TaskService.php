@@ -12,8 +12,8 @@ use DateTimeZone;
 /**
  * @phpstan-import-type Task from TaskRepository
  *
- * @phpstan-type CreateTaskAttributes array{title: non-empty-string, description?: string|null, status?: 'todo'|'in_progress'|'done', due_date?: string|null}
- * @phpstan-type TaskAttributes array{title?: non-empty-string, description?: string|null, status?: 'todo'|'in_progress'|'done', due_date?: string|null}
+ * @phpstan-type CreateTaskAttributes array{title: non-empty-string, description?: string|null, status?: 'todo'|'in_progress'|'done', due_date?: string|null, category_id?: positive-int|null}
+ * @phpstan-type TaskAttributes array{title?: non-empty-string, description?: string|null, status?: 'todo'|'in_progress'|'done', due_date?: string|null, category_id?: positive-int|null}
  */
 final class TaskService
 {
@@ -35,6 +35,14 @@ final class TaskService
             $tasks = array_values(array_filter(
                 $tasks,
                 fn (array $task): bool => $task['due_date'] === $filters->dueDate,
+            ));
+        }
+
+        if ($filters->categoryIds !== []) {
+            $tasks = array_values(array_filter(
+                $tasks,
+                fn (array $task): bool => $task['category_id'] !== null
+                    && in_array($task['category_id'], $filters->categoryIds, true),
             ));
         }
 
@@ -62,6 +70,7 @@ final class TaskService
             'description' => $attributes['description'] ?? null,
             'status' => $attributes['status'] ?? 'todo',
             'due_date' => $attributes['due_date'] ?? null,
+            'category_id' => $attributes['category_id'] ?? null,
             'created_at' => $timestamp,
             'updated_at' => $timestamp,
         ]);

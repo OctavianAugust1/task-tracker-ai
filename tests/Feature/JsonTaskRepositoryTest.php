@@ -16,7 +16,7 @@ use Tests\TestCase;
  * @phpstan-import-type Task from TaskRepository
  * @phpstan-import-type NewTask from TaskRepository
  *
- * @phpstan-type State array{next_id: positive-int, tasks: list<Task>}
+ * @phpstan-type State array{next_task_id: positive-int, next_category_id: positive-int, tasks: list<Task>, categories: list<mixed>}
  */
 #[CoversClass(JsonTaskRepository::class)]
 final class JsonTaskRepositoryTest extends TestCase
@@ -82,7 +82,7 @@ final class JsonTaskRepositoryTest extends TestCase
         $third = $this->store->create($this->taskWithoutId('Third'));
 
         $this->assertSame(3, $third['id']);
-        $this->assertSame(4, $this->readState()['next_id']);
+        $this->assertSame(4, $this->readState()['next_task_id']);
     }
 
     /**
@@ -115,6 +115,69 @@ final class JsonTaskRepositoryTest extends TestCase
 
         $this->expectException(CorruptTaskStorage::class);
         $this->store->all();
+    }
+
+    /**
+     * Проверяет повреждение нового state: категории и ссылки задач на них.
+     */
+    public function test_invalid_category_state_is_rejected(): void
+    {
+        $category = [
+            'id' => 1,
+            'name' => 'Work',
+            'created_at' => '2026-08-15T10:00:00Z',
+            'updated_at' => '2026-08-15T10:00:00Z',
+        ];
+        $task = [...$this->task(), 'category_id' => 1];
+        $base = [
+            'next_task_id' => 2,
+            'next_category_id' => 2,
+            'tasks' => [$task],
+            'categories' => [$category],
+        ];
+        $invalidStates = [
+            [...$base, 'categories' => [$category, $category], 'next_category_id' => 3],
+            [...$base, 'categories' => [$category, [...$category, 'id' => 2, 'name' => 'work']], 'next_category_id' => 3],
+            [...$base, 'categories' => [[...$category, 'name' => ' ']]],
+            [...$base, 'tasks' => [[...$task, 'category_id' => 999]]],
+        ];
+
+        foreach ($invalidStates as $invalidState) {
+            $contents = json_encode($invalidState, JSON_THROW_ON_ERROR);
+            $this->files->put($this->tasksFile, $contents);
+
+            try {
+                $this->store->allCategories();
+                $this->fail('Invalid category storage was accepted.');
+            } catch (CorruptTaskStorage) {
+                $this->assertSame($contents, $this->files->get($this->tasksFile));
+            }
+        }
+    }
+
+    /**
+     * Проверяет, что category mutation не заменяет файл с dangling-ссылкой.
+     */
+    public function test_category_mutation_preserves_corrupted_storage(): void
+    {
+        $contents = json_encode([
+            'next_task_id' => 2,
+            'next_category_id' => 1,
+            'tasks' => [[...$this->task(), 'category_id' => 999]],
+            'categories' => [],
+        ], JSON_THROW_ON_ERROR);
+        $this->files->put($this->tasksFile, $contents);
+
+        try {
+            $this->store->createCategory([
+                'name' => 'Must not be written',
+                'created_at' => '2026-08-15T10:00:00Z',
+                'updated_at' => '2026-08-15T10:00:00Z',
+            ]);
+            $this->fail('Corrupted storage was replaced by category mutation.');
+        } catch (CorruptTaskStorage) {
+            $this->assertSame($contents, $this->files->get($this->tasksFile));
+        }
     }
 
     /**
@@ -167,6 +230,7 @@ final class JsonTaskRepositoryTest extends TestCase
             'description' => null,
             'status' => 'todo',
             'due_date' => null,
+            'category_id' => null,
             'created_at' => '2026-08-15T10:00:00Z',
             'updated_at' => '2026-08-15T10:00:00Z',
         ];

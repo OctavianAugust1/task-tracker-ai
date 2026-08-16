@@ -1,6 +1,6 @@
 # Состояние проекта
 
-**Обновлено:** 2026-08-16, сессия 14
+**Обновлено:** 2026-08-16, сессия 15
 
 ## Готово
 
@@ -81,6 +81,18 @@
   `Task API v1` со всеми пятью endpoint'ами, variables и status-code tests.
 - Read-back Postman подтвердил personal visibility и пять актуальных v1 requests;
   публичная документация, mocks и monitors не создавались.
+- Добавлена сущность категории с пятью CRUD endpoint'ами; задача содержит nullable
+  `category_id`, а удаление используемой категории возвращает 409.
+- Задачи фильтруются по `category_ids[]` через OR внутри категорий и AND со
+  `statuses[]` и `due_date`.
+- Новый JSON state имеет task/category counters и collections. Валидный legacy
+  state читается без записи и мигрирует при следующем успешном изменении.
+- Postman collection расширена до 10 requests и переменной `category_id`; full
+  read-back подтвердил состав в прежнем personal workspace.
+- Финальная проверка: 44 passed / 573 assertions, Larastan level 8 без ошибок,
+  Pint passed, ровно 10 API v1 routes; реальный HTTP вернул 201/200/409/422.
+- Независимый аудит нашёл string `category_id`, приводивший к 500; добавлены
+  strict validation rule и POST/PATCH regression tests. Остаточные findings закрыты.
 
 ## В работе
 
@@ -123,5 +135,5 @@
 
 ## Следующий шаг
 
-Postman workspace и коллекция созданы. Следующий шаг — просмотреть
-итоговый коммит и подготовить репозиторий к сдаче.
+Категории реализованы и проверены. Следующий шаг — просмотреть итоговый коммит и
+подготовить репозиторий к сдаче.

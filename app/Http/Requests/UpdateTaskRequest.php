@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
+use App\Rules\StrictPositiveInteger;
 use UnexpectedValueException;
 
 final class UpdateTaskRequest extends ApiRequest
 {
-    /** @return array<string, list<string>> */
+    /** @return array<string, list<string|StrictPositiveInteger>> */
     public function rules(): array
     {
         return [
@@ -16,6 +17,7 @@ final class UpdateTaskRequest extends ApiRequest
             'description' => ['sometimes', 'nullable', 'string', 'max:2000'],
             'status' => ['sometimes', 'string', 'in:todo,in_progress,done'],
             'due_date' => ['sometimes', 'nullable', 'date_format:Y-m-d'],
+            'category_id' => ['sometimes', 'nullable', new StrictPositiveInteger],
         ];
     }
 
@@ -24,7 +26,7 @@ final class UpdateTaskRequest extends ApiRequest
         return true;
     }
 
-    /** @return array{title?: non-empty-string, description?: string|null, status?: 'todo'|'in_progress'|'done', due_date?: string|null} */
+    /** @return array{title?: non-empty-string, description?: string|null, status?: 'todo'|'in_progress'|'done', due_date?: string|null, category_id?: positive-int|null} */
     public function validatedTaskAttributes(): array
     {
         $validated = $this->validated();
@@ -60,6 +62,14 @@ final class UpdateTaskRequest extends ApiRequest
             }
 
             $attributes['status'] = $status;
+        }
+
+        if (array_key_exists('category_id', $validated)) {
+            $categoryId = $validated['category_id'];
+            if ($categoryId !== null && (! is_int($categoryId) || $categoryId < 1)) {
+                throw new UnexpectedValueException('Validated category ID has an invalid type.');
+            }
+            $attributes['category_id'] = $categoryId;
         }
 
         return $attributes;

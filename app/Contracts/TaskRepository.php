@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Contracts;
 
 /**
- * @phpstan-type Task array{id: positive-int, title: non-empty-string, description: string|null, status: 'todo'|'in_progress'|'done', due_date: string|null, created_at: string, updated_at: string}
- * @phpstan-type NewTask array{title: non-empty-string, description: string|null, status: 'todo'|'in_progress'|'done', due_date: string|null, created_at: string, updated_at: string}
+ * @phpstan-type Task array{id: positive-int, title: non-empty-string, description: string|null, status: 'todo'|'in_progress'|'done', due_date: string|null, category_id: positive-int|null, created_at: string, updated_at: string}
+ * @phpstan-type NewTask array{title: non-empty-string, description: string|null, status: 'todo'|'in_progress'|'done', due_date: string|null, category_id: positive-int|null, created_at: string, updated_at: string}
  */
 interface TaskRepository
 {
