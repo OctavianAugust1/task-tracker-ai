@@ -104,3 +104,15 @@
 - **Область:** основной проект
 - **Проверка:** `composer analyse` запускает транзитивный PHPStan 2.2.8 на level 8
   и завершается сообщением `[OK] No errors`; baseline и `ignoreErrors` не используются
+
+## 2026-08-16 · Сессия 14 · Postman
+
+- **Тип:** сервис / MCP
+- **Установка:** Postman connector уже подключён пользователем; команда установки
+  отсутствует
+- **Зачем:** хранить и вручную выполнять пять запросов Task API в отдельном
+  workspace
+- **Область:** внешний Postman-аккаунт, personal workspace `Laravel Task API`
+- **Проверка:** read-back workspace подтвердил `visibility: personal` и коллекцию
+  `Task API v1`; full read-back коллекции показал 5 requests и 3 несекретные
+  variables

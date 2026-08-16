@@ -110,6 +110,16 @@ php artisan route:list --path=api/v1/tasks
 `composer analyse` проверяет основной PHP-код на PHPStan level 8 с Laravel-aware
 расширением Larastan. Конфигурация не использует baseline или `ignoreErrors`.
 
+## Postman
+
+В подключённом Postman-аккаунте создан personal workspace `Laravel Task API` и
+коллекция `Task API v1` со всеми пятью endpoint'ами. Коллекция использует
+переменные `base_url=http://127.0.0.1:8000`, `task_id` и `due_date`; запрос Create
+сохраняет созданный ID для Get, Update и Delete.
+
+- Workspace ID: `bdf83f6a-5b7c-42cd-9a94-f970641f71fc`.
+- Collection UID: `15088864-85dfa2f5-31b8-4a87-90bd-5d787cedbd3f`.
+
 ## Архитектура
 
 HTTP-запрос проходит через `TaskController` в `TaskService`. Сервис содержит

@@ -1,6 +1,6 @@
 # Состояние проекта
 
-**Обновлено:** 2026-08-16, сессия 13
+**Обновлено:** 2026-08-16, сессия 14
 
 ## Готово
 
@@ -77,6 +77,10 @@
 - После фильтров: Larastan level 8 без ошибок, 33 passed / 418 assertions, Pint
   passed; реальный комбинированный запрос 200 и duplicate statuses 422.
 - Независимый аудит фильтров после исправлений: Critical/Important отсутствуют.
+- В Postman создан personal workspace `Laravel Task API` и Collection v2.1
+  `Task API v1` со всеми пятью endpoint'ами, variables и status-code tests.
+- Read-back Postman подтвердил personal visibility и пять актуальных v1 requests;
+  публичная документация, mocks и monitors не создавались.
 
 ## В работе
 
@@ -95,6 +99,8 @@
 - Laravel 12.66.0, PHPUnit 11.5.56, Pint 1.30.4 внутри `naive-run/`.
 - Laravel 12.66.0, PHPUnit 11.5.56, Pint 1.30.4 в основном проекте.
 - Larastan 3.10.0 и транзитивный PHPStan 2.2.8; настроен level 8.
+- Подключённый Postman connector; personal workspace ID
+  `bdf83f6a-5b7c-42cd-9a94-f970641f71fc`.
 
 ## Известные проблемы
 
@@ -117,5 +123,5 @@
 
 ## Следующий шаг
 
-Комбинированная фильтрация завершена. Следующий шаг — просмотреть
+Postman workspace и коллекция созданы. Следующий шаг — просмотреть
 итоговый коммит и подготовить репозиторий к сдаче.
