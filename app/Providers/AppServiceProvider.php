@@ -6,7 +6,9 @@ namespace App\Providers;
 
 use App\Contracts\CategoryRepository;
 use App\Contracts\TaskRepository;
+use App\OpenApi\ScrambleOpenApiTransformer;
 use App\Repositories\JsonTaskRepository;
+use Dedoc\Scramble\Scramble;
 use Illuminate\Config\Repository as ConfigRepository;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Support\ServiceProvider;
@@ -30,6 +32,6 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        Scramble::afterOpenApiGenerated(new ScrambleOpenApiTransformer);
     }
 }

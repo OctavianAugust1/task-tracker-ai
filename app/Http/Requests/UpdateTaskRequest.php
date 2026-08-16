@@ -5,8 +5,14 @@ declare(strict_types=1);
 namespace App\Http\Requests;
 
 use App\Rules\StrictPositiveInteger;
+use Dedoc\Scramble\Attributes\BodyParameter;
 use UnexpectedValueException;
 
+#[BodyParameter('title', 'Новый заголовок.', required: false, type: 'string', infer: true, example: 'Обновлённый отчёт')]
+#[BodyParameter('description', 'Новое описание или null.', required: false, type: 'string|null', infer: true, example: 'Добавить финансовый раздел')]
+#[BodyParameter('status', 'Новый статус.', required: false, type: "'todo'|'in_progress'|'done'", infer: true, example: 'in_progress')]
+#[BodyParameter('due_date', 'Новая дата окончания или null.', required: false, type: 'string|null', format: 'date', infer: true, example: '2026-08-21')]
+#[BodyParameter('category_id', 'ID существующей категории; null снимает категорию.', required: false, type: 'int|null', infer: false, example: 1)]
 final class UpdateTaskRequest extends ApiRequest
 {
     /** @return array<string, list<string|StrictPositiveInteger>> */

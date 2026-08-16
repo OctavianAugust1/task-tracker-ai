@@ -1,6 +1,6 @@
 # Состояние проекта
 
-**Обновлено:** 2026-08-16, сессия 15
+**Обновлено:** 2026-08-16, сессия 16
 
 ## Готово
 
@@ -93,6 +93,19 @@
   Pint passed, ровно 10 API v1 routes; реальный HTTP вернул 201/200/409/422.
 - Независимый аудит нашёл string `category_id`, приводивший к 500; добавлены
   strict validation rule и POST/PATCH regression tests. Остаточные findings закрыты.
+- Добавлен runtime-пакет Scramble 0.13.41 и OpenAPI 3.1 документация всех 10
+  операций непосредственно в controller/FormRequest PHP-коде.
+- Локальные `/docs/api` и `/docs/api.json` защищены middleware без auth/session/DB;
+  вне окружения local возвращается 403.
+- `composer docs` экспортирует корневой `api.json`; артефакт существует, валиден,
+  игнорируется `.gitignore` и не отслеживается Git.
+- OpenAPI contract test проверяет операции, фильтры, request constraints, ответы и
+  отсутствие body у 204. После интеграции: 47 passed / 613 assertions, Larastan
+  level 8 без ошибок по 55 файлам, Pint и Composer validate проходят.
+- Реальный HTTP подтвердил docs 200, POST 201, validation 422, а также корректную
+  обработку отсутствующего, пустого и повреждённого JSON-хранилища.
+- Независимый аудит Scramble не нашёл Critical; найденные расхождения validation
+  constraints исправлены через document transformer и точные assertions.
 
 ## В работе
 
@@ -111,6 +124,7 @@
 - Laravel 12.66.0, PHPUnit 11.5.56, Pint 1.30.4 внутри `naive-run/`.
 - Laravel 12.66.0, PHPUnit 11.5.56, Pint 1.30.4 в основном проекте.
 - Larastan 3.10.0 и транзитивный PHPStan 2.2.8; настроен level 8.
+- Scramble 0.13.41; OpenAPI export запускается через `composer docs`.
 - Подключённый Postman connector; personal workspace ID
   `bdf83f6a-5b7c-42cd-9a94-f970641f71fc`.
 
@@ -132,8 +146,12 @@
   пустого PATCH и framework 404/405 проверяются exact JSON.
 - Неоговорённые API exceptions нормализуются в безопасный 500, даже если новый
   framework-сценарий мог бы иметь иной HTTP-статус (например, 413).
+- Поле даты и timestamps в сгенерированных response schemas имеют тип `string`
+  без OpenAPI format: для их уточнения потребовались бы отдельные response DTO.
+- UI Scramble проверен по HTTP, но не открывался в графическом браузере; стандартный
+  Elements renderer получает frontend assets с CDN.
 
 ## Следующий шаг
 
-Категории реализованы и проверены. Следующий шаг — просмотреть итоговый коммит и
+Scramble интегрирован и проверен. Следующий шаг — просмотреть итоговый коммит и
 подготовить репозиторий к сдаче.

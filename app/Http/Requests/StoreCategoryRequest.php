@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
+use Dedoc\Scramble\Attributes\BodyParameter;
 use UnexpectedValueException;
 
+#[BodyParameter('name', 'Уникальное без учёта регистра имя категории.', required: true, type: 'string', infer: true, example: 'Работа')]
 class StoreCategoryRequest extends ApiRequest
 {
     /** @return array<string, list<string>> */

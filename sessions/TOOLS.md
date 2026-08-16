@@ -116,3 +116,14 @@
 - **Проверка:** read-back workspace подтвердил `visibility: personal` и коллекцию
   `Task API v1`; full read-back коллекции показал 5 requests и 3 несекретные
   variables
+
+## 2026-08-16 · Сессия 16 · Scramble v0.13.41
+
+- **Тип:** библиотека / CLI
+- **Установка:** `composer require dedoc/scramble --no-interaction`
+- **Зачем:** генерировать OpenAPI 3.1 и локальную документацию непосредственно из
+  Laravel-кода и validation rules
+- **Область:** основной проект
+- **Проверка:** `composer show dedoc/scramble --locked` показал v0.13.41;
+  `composer docs` создал игнорируемый `api.json`; Feature-тест проверяет UI,
+  JSON-spec и все 10 операций

@@ -15,7 +15,8 @@
 - Composer 2.
 
 Проверенные версии: PHP 8.2.33, Composer 2.10.2, Laravel 12.66.0,
-PHPUnit 11.5.56, Laravel Pint 1.30.4, Larastan 3.10.0 и PHPStan 2.2.8.
+PHPUnit 11.5.56, Laravel Pint 1.30.4, Larastan 3.10.0, PHPStan 2.2.8 и
+Scramble 0.13.41.
 
 ## Установка
 
@@ -116,6 +117,25 @@ php artisan route:list --path=api/v1/categories
 
 `composer analyse` проверяет основной PHP-код на PHPStan level 8 с Laravel-aware
 расширением Larastan. Конфигурация не использует baseline или `ignoreErrors`.
+
+## OpenAPI-документация
+
+Scramble формирует OpenAPI 3.1 непосредственно из validation rules, PHPDoc и
+атрибутов в контроллерах и FormRequest. В окружении `local` доступны:
+
+- `http://127.0.0.1:8000/docs/api` — интерактивный UI;
+- `http://127.0.0.1:8000/docs/api.json` — актуальная JSON-спецификация.
+
+В других окружениях оба маршрута отвечают `403`, поскольку проект не имеет
+аутентификации. Чтобы экспортировать спецификацию в корневой `api.json`:
+
+```bash
+composer docs
+```
+
+`api.json` является генерируемым файлом и указан в `.gitignore`. Автотест
+проверяет все 10 operation ID, фильтры, request schemas, основные response codes
+и отсутствие тела у ответов `204`.
 
 ## Postman
 

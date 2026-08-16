@@ -13,11 +13,28 @@ final class ListTasksRequest extends ApiRequest
     public function rules(): array
     {
         return [
-            'statuses' => ['sometimes', 'required', 'array', 'list', 'min:1', 'max:3'],
-            'statuses.*' => ['required', 'string', 'distinct:strict', 'in:todo,in_progress,done'],
-            'due_date' => ['sometimes', 'required', 'string', 'date_format:Y-m-d'],
-            'category_ids' => ['sometimes', 'required', 'array', 'list', 'min:1'],
-            'category_ids.*' => ['required', 'integer', 'min:1', 'distinct:strict'],
+            /**
+             * Статусы задач; значения объединяются через OR.
+             *
+             * @example ["todo", "done"]
+             */
+            'statuses' => ['sometimes', 'array', 'list', 'min:1', 'max:3'],
+            /** Значение статуса; несколько значений объединяются через OR. */
+            'statuses.*' => ['string', 'distinct:strict', 'in:todo,in_progress,done'],
+            /**
+             * Точная дата окончания; объединяется с другими фильтрами через AND.
+             *
+             * @example "2026-08-20"
+             */
+            'due_date' => ['sometimes', 'string', 'date_format:Y-m-d'],
+            /**
+             * ID категорий; значения объединяются через OR.
+             *
+             * @example [1, 2]
+             */
+            'category_ids' => ['sometimes', 'array', 'list', 'min:1'],
+            /** Положительный ID категории; несколько значений объединяются через OR. */
+            'category_ids.*' => ['integer', 'min:1', 'distinct:strict'],
         ];
     }
 
